@@ -7,6 +7,8 @@
 
 """Python FROST adaptor signatures implementation."""
 
+import secrets
+
 class FROST:
     class secp256k1:
         P = 2**256 - 2**32 - 977
@@ -29,6 +31,42 @@ class FROST:
             self.coefficients = coefficients
             self.coefficient_commitments = coefficient_commitments
             self.proof_of_knowledge = proof_of_knowledge
+
+        def init_keygen(self):
+            Q = FROST.secp256k1.Q
+            G = FROST.secp256k1.G()
+            # 1. Generate polynomial with random coefficients, and with degree equal to the treshold minus one.
+            #
+            # f(x) = ∑ a_i_j * x^j
+            self.coefficients = [secrets.randbits(256) % Q for _ in range(self.threshold)]
+            # 2. Compute proof of knowledge of secret a_i_0.
+            #
+            # k ⭠ Z_q
+            nonce = secrets.randbits(256) % Q
+            # R_i = g^k
+            nonce_commitment = nonce * G
+            # i
+            index_bytes = int.to_bytes(self.index, 1, 'big')
+            # 𝚽
+            context_bytes = self.CONTEXT
+            # g^a_i_0
+            secret = self.coefficients[0]
+            secret_commitment = secret * G
+            secret_commitment_bytes = bytes.fromhex(secret_commitment.sec_serialize())
+            # R_i
+            nonce_commitment_bytes = bytes.fromhex(nonce_commitment.sec_serialize())
+            # c_i = H(i, 𝚽, g^a_i_0, R_i)
+            challenge_input = index_bytes + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
+            challenge_hash_bytes = sha256(challenge_input).digest()
+            challenge_hash_int = int.from_bytes(challenge_hash_bytes, 'big')
+            # μ_i = k + a_i_0 * c_i
+            s = (nonce + secret * challenge_hash_int) % Q
+            # σ_i = (R_i, μ_i)
+            self.proof_of_knowledge = [nonce_commitment, s]
+            # 3. Compute coefficient commitments.
+            #
+            # C_i = ⟨𝜙_i_0, . . ., 𝜙_i_(t-1)⟩
+            self.coefficient_commitments = [coefficient * G for coefficient in self.coefficients]
 
     class Point:
         """Class representing an elliptic curve point."""
