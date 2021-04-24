@@ -18,6 +18,18 @@ class FROST:
         def G(cls):
             return FROST.Point(cls.G_x, cls.G_y)
 
+    class Participant:
+        """Class representing a FROST participant."""
+
+        CONTEXT = b'FROST-BIP340'
+
+        def __init__(self, index, threshold, coefficients=[], coefficient_commitments=[], proof_of_knowledge=[]):
+            self.index = index
+            self.threshold = threshold
+            self.coefficients = coefficients
+            self.coefficient_commitments = coefficient_commitments
+            self.proof_of_knowledge = proof_of_knowledge
+
     class Point:
         """Class representing an elliptic curve point."""
 
