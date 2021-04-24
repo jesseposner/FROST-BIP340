@@ -35,7 +35,8 @@ class FROST:
         def init_keygen(self):
             Q = FROST.secp256k1.Q
             G = FROST.secp256k1.G()
-            # 1. Generate polynomial with random coefficients, and with degree equal to the treshold minus one.
+            # 1. Generate polynomial with random coefficients, and with degree
+            # equal to the threshold minus one.
             #
             # f(x) = ∑ a_i_j * x^j
             self.coefficients = [secrets.randbits(256) % Q for _ in range(self.threshold)]
