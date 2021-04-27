@@ -1,9 +1,13 @@
-#  Copyright (c) 2021 Jesse Posner
-#  Distributed under the MIT software license, see the accompanying
-#  file LICENSE or http://www.opensource.org/licenses/mit-license.php.
+# Copyright (c) 2021 Jesse Posner
+# Distributed under the MIT software license, see the accompanying file LICENSE
+# or http://www.opensource.org/licenses/mit-license.php.
 #
-#  This code is currently a work in progress. It's not secure nor stable.
-#  IT IS EXTREMELY DANGEROUS AND RECKLESS TO USE THIS MODULE IN PRODUCTION!
+# This code is currently a work in progress. It's not secure nor stable.  IT IS
+# EXTREMELY DANGEROUS AND RECKLESS TO USE THIS MODULE IN PRODUCTION!
+#
+# This module implements Flexible Round-Optimized Schnorr Threshold Signatures
+# (FROST) by Chelsea Komlo and Ian Goldberg
+# (https://crysp.uwaterloo.ca/software/frost/).
 
 """Python FROST adaptor signatures implementation."""
 
@@ -38,7 +42,7 @@ class FROST:
             # 1. Generate polynomial with random coefficients, and with degree
             # equal to the threshold minus one.
             #
-            # f(x) = ∑ a_i_j * x^j
+            # f(x) = ∑ a_i_j * x^j, 0 ≤ j ≤ t - 1
             self.coefficients = [secrets.randbits(256) % Q for _ in range(self.threshold)]
             # 2. Compute proof of knowledge of secret a_i_0.
             #
@@ -66,7 +70,8 @@ class FROST:
             self.proof_of_knowledge = [nonce_commitment, s]
             # 3. Compute coefficient commitments.
             #
-            # C_i = ⟨𝜙_i_0, . . ., 𝜙_i_(t-1)⟩
+            # C_i = ⟨𝜙_i_0, ..., 𝜙_i_(t-1)⟩
+            # 𝜙_i_j = g^a_i_j, 0 ≤ j ≤ t -1
             self.coefficient_commitments = [coefficient * G for coefficient in self.coefficients]
 
     class Point:
