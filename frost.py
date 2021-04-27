@@ -43,7 +43,7 @@ class FROST:
             # 1. Generate polynomial with random coefficients, and with degree
             # equal to the threshold minus one.
             #
-            # f(x) = ∑ a_i_j * x^j, 0 ≤ j ≤ t - 1
+            # f_i(x) = ∑ a_i_j * x^j, 0 ≤ j ≤ t - 1
             self.coefficients = [secrets.randbits(256) % Q for _ in range(self.threshold)]
             # 2. Compute proof of knowledge of secret a_i_0.
             #
