@@ -58,9 +58,9 @@ class FROST:
             # g^a_i_0
             secret = self.coefficients[0]
             secret_commitment = secret * G
-            secret_commitment_bytes = bytes.fromhex(secret_commitment.sec_serialize())
+            secret_commitment_bytes = secret_commitment.sec_serialize()
             # R_i
-            nonce_commitment_bytes = bytes.fromhex(nonce_commitment.sec_serialize())
+            nonce_commitment_bytes = nonce_commitment.sec_serialize()
             # c_i = H(i, 𝚽, g^a_i_0, R_i)
             challenge_input = index_bytes + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
             challenge_hash_bytes = sha256(challenge_input).digest()
@@ -102,9 +102,9 @@ class FROST:
             return cls(x, y)
 
         def sec_serialize(self):
-            prefix = '02' if self.y % 2 == 0 else '03'
+            prefix = b'\x02' if self.y % 2 == 0 else b'\x03'
 
-            return prefix + format(self.x, 'x')
+            return prefix + int.to_bytes(self.x, 32, 'big')
 
         # point at infinity
         def is_zero(self):
