@@ -12,6 +12,7 @@
 """Python FROST adaptor signatures implementation."""
 
 import secrets
+from hashlib import sha256
 
 class FROST:
     class secp256k1:
