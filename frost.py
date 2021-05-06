@@ -75,6 +75,26 @@ class FROST:
             # 𝜙_i_j = g^a_i_j, 0 ≤ j ≤ t -1
             self.coefficient_commitments = [coefficient * G for coefficient in self.coefficients]
 
+        def verify_proof_of_knowledge(self, proof, secret_commitment, index):
+            G = FROST.secp256k1.G()
+            # l
+            index_byte = int.to_bytes(index, 1, 'big')
+            # 𝚽
+            context_bytes = self.CONTEXT
+            # g^a_l_0
+            secret_commitment_bytes = secret_commitment.sec_serialize()
+            # R_l
+            nonce_commitment = proof[0]
+            nonce_commitment_bytes = nonce_commitment.sec_serialize()
+            # c_l = H(l, 𝚽, g^a_l_0, R_l)
+            challenge_input = index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
+            challenge_hash_bytes = sha256(challenge_input).digest()
+            challenge_hash_int = int.from_bytes(challenge_hash_bytes, 'big')
+            # μ_l
+            s = proof[1]
+            # R_l ≟ g^μ_l * 𝜙_l_0^-c_l, 1 ≤ l ≤ n, l ≠ i
+            return nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash_int) * secret_commitment
+
     class Point:
         """Class representing an elliptic curve point."""
 
