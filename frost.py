@@ -107,6 +107,16 @@ class FROST:
                 y = y + self.coefficients[i] * x**i
             return y
 
+        def verify_share(self, y, coefficient_commitments):
+            Q = FROST.secp256k1.Q
+            G = FROST.secp256k1.G()
+            # ∏ 𝜙_lk^i^k mod q, 0 ≤ k ≤ t - 1
+            expected_y_commitment = FROST.Point()
+            for k in range(len(coefficient_commitments)):
+                expected_y_commitment = expected_y_commitment + ((self.index ** k % Q) * coefficient_commitments[k])
+            # g^f_l(i) ≟ ∏ 𝜙_lk^i^k mod q, 0 ≤ k ≤ t - 1
+            return y * G == expected_y_commitment
+
     class Point:
         """Class representing an elliptic curve point."""
 
