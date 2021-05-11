@@ -30,12 +30,14 @@ class FROST:
 
         CONTEXT = b'FROST-BIP340'
 
-        def __init__(self, index, threshold, coefficients=[], coefficient_commitments=[], proof_of_knowledge=[]):
+        def __init__(self, index, threshold, participants, coefficients=[], coefficient_commitments=[], proof_of_knowledge=[], shares=[]):
             self.index = index
             self.threshold = threshold
+            self.participants = participants
             self.coefficients = coefficients
             self.coefficient_commitments = coefficient_commitments
             self.proof_of_knowledge = proof_of_knowledge
+            self.shares = shares
 
         def init_keygen(self):
             Q = FROST.secp256k1.Q
@@ -94,6 +96,16 @@ class FROST:
             s = proof[1]
             # R_l ≟ g^μ_l * 𝜙_l_0^-c_l, 1 ≤ l ≤ n, l ≠ i
             return nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash_int) * secret_commitment
+
+        def generate_shares(self):
+            # (i, f_i(i)), (l, f_i(l)
+            self.shares = [self.evaluate_polynomial(x) for x in range(1, self.participants + 1)]
+
+        def evaluate_polynomial(self, x):
+            y = self.coefficients[0]
+            for i in range(1, len(self.coefficients)):
+                y = y + self.coefficients[i] * x**i
+            return y
 
     class Point:
         """Class representing an elliptic curve point."""
