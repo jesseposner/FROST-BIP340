@@ -126,6 +126,11 @@ class FROST:
                 aggregate_share = aggregate_share + share
             self.aggregate_share = aggregate_share
 
+        def public_verification_share(self):
+            G = FROST.secp256k1.G()
+            # Y_i = g^s_i
+            return self.aggregate_share * G
+
         def public_key(self, secret_commitments):
             # Y = ∏ 𝜙_j0, 1 ≤ j ≤ n
             public_key = self.coefficient_commitments[0]
