@@ -30,7 +30,7 @@ class FROST:
 
         CONTEXT = b'FROST-BIP340'
 
-        def __init__(self, index, threshold, participants, coefficients=[], coefficient_commitments=[], proof_of_knowledge=[], shares=[]):
+        def __init__(self, index, threshold, participants, coefficients=[], coefficient_commitments=[], proof_of_knowledge=[], shares=[], aggregate_share=None):
             self.index = index
             self.threshold = threshold
             self.participants = participants
@@ -38,6 +38,7 @@ class FROST:
             self.coefficient_commitments = coefficient_commitments
             self.proof_of_knowledge = proof_of_knowledge
             self.shares = shares
+            self.aggregate_share = aggregate_share
 
         def init_keygen(self):
             Q = FROST.secp256k1.Q
@@ -117,6 +118,13 @@ class FROST:
                 expected_y_commitment = expected_y_commitment + ((self.index ** k % Q) * coefficient_commitments[k])
             # g^f_l(i) ≟ ∏ 𝜙_lk^i^k mod q, 0 ≤ k ≤ t - 1
             return y * G == expected_y_commitment
+
+        def aggregate_shares(self, shares):
+            # s_i = ∑ f_l(i), 1 ≤ l ≤ n
+            aggregate_share = self.shares[self.index - 1]
+            for share in shares:
+                aggregate_share = aggregate_share + share
+            self.aggregate_share = aggregate_share
 
     class Point:
         """Class representing an elliptic curve point."""
