@@ -12,6 +12,7 @@
 """Python FROST adaptor signatures implementation."""
 
 import secrets
+import unittest
 from hashlib import sha256
 
 class FROST:
@@ -233,3 +234,80 @@ class FROST:
 
         def __repr__(self) -> str:
             return self.__str__()
+
+
+class Tests(unittest.TestCase):
+    def test_keygen(self):
+        p1 = FROST.Participant(index=1, threshold=2, participants=3)
+        p2 = FROST.Participant(index=2, threshold=2, participants=3)
+        p3 = FROST.Participant(index=3, threshold=2, participants=3)
+
+        # Round 1.1, 1.2, 1.3, and 1.4
+        p1.init_keygen()
+        p2.init_keygen()
+        p3.init_keygen()
+
+        # Round 1.5
+        self.assertTrue(
+            p1.verify_proof_of_knowledge(p2.proof_of_knowledge, p2.coefficient_commitments[0], index=2)
+        )
+        self.assertTrue(
+            p1.verify_proof_of_knowledge(p3.proof_of_knowledge, p3.coefficient_commitments[0], index=3)
+        )
+
+        self.assertTrue(
+            p2.verify_proof_of_knowledge(p1.proof_of_knowledge, p1.coefficient_commitments[0], index=1)
+        )
+        self.assertTrue(
+            p2.verify_proof_of_knowledge(p3.proof_of_knowledge, p3.coefficient_commitments[0], index=3)
+        )
+
+        self.assertTrue(
+            p3.verify_proof_of_knowledge(p1.proof_of_knowledge, p1.coefficient_commitments[0], index=1)
+        )
+        self.assertTrue(
+            p3.verify_proof_of_knowledge(p2.proof_of_knowledge, p2.coefficient_commitments[0], index=2)
+        )
+
+        # Round 2.1
+        p1.generate_shares()
+        p2.generate_shares()
+        p3.generate_shares()
+
+        # Round 2.2
+        self.assertTrue(
+            p1.verify_share(p2.shares[p1.index-1], p2.coefficient_commitments)
+        )
+        self.assertTrue(
+            p1.verify_share(p3.shares[p1.index-1], p3.coefficient_commitments)
+        )
+
+        self.assertTrue(
+            p2.verify_share(p1.shares[p2.index-1], p1.coefficient_commitments)
+        )
+        self.assertTrue(
+            p2.verify_share(p3.shares[p2.index-1], p3.coefficient_commitments)
+        )
+
+        self.assertTrue(
+            p3.verify_share(p1.shares[p3.index-1], p1.coefficient_commitments)
+        )
+        self.assertTrue(
+            p3.verify_share(p2.shares[p3.index-1], p2.coefficient_commitments)
+        )
+
+        # Round 2.3
+        p1.aggregate_shares([p2.shares[p1.index-1], p3.shares[p1.index-1]])
+        p2.aggregate_shares([p1.shares[p2.index-1], p3.shares[p2.index-1]])
+        p3.aggregate_shares([p1.shares[p3.index-1], p2.shares[p3.index-1]])
+
+        # Round 2.4
+        pk1 = p1.public_key([p2.coefficient_commitments[0], p3.coefficient_commitments[0]])
+        pk2 = p2.public_key([p1.coefficient_commitments[0], p3.coefficient_commitments[0]])
+        pk3 = p3.public_key([p1.coefficient_commitments[0], p2.coefficient_commitments[0]])
+
+        self.assertEqual(pk1, pk2)
+        self.assertEqual(pk2, pk3)
+
+if __name__ == '__main__':
+    unittest.main()
