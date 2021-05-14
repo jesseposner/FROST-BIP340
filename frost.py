@@ -126,6 +126,14 @@ class FROST:
                 aggregate_share = aggregate_share + share
             self.aggregate_share = aggregate_share
 
+        def public_key(self, secret_commitments):
+            # Y = ∏ 𝜙_j0, 1 ≤ j ≤ n
+            public_key = self.coefficient_commitments[0]
+            for secret_commitment in secret_commitments:
+                public_key = public_key + secret_commitment
+            return public_key
+
+
     class Point:
         """Class representing an elliptic curve point."""
 
