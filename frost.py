@@ -31,15 +31,15 @@ class FROST:
 
         CONTEXT = b'FROST-BIP340'
 
-        def __init__(self, index, threshold, participants, coefficients=[], coefficient_commitments=[], proof_of_knowledge=[], shares=[], aggregate_share=None):
+        def __init__(self, index, threshold, participants):
             self.index = index
             self.threshold = threshold
             self.participants = participants
-            self.coefficients = coefficients
-            self.coefficient_commitments = coefficient_commitments
-            self.proof_of_knowledge = proof_of_knowledge
-            self.shares = shares
-            self.aggregate_share = aggregate_share
+            self.coefficients = []
+            self.coefficient_commitments = []
+            self.proof_of_knowledge = []
+            self.shares = []
+            self.aggregate_share = None
 
         def init_keygen(self):
             Q = FROST.secp256k1.Q
