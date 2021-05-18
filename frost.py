@@ -40,6 +40,9 @@ class FROST:
             self.proof_of_knowledge = []
             self.shares = []
             self.aggregate_share = None
+            self.nonce_pairs = []
+            # L_i
+            self.nonce_commitment_pairs = []
 
         def init_keygen(self):
             Q = FROST.secp256k1.Q
@@ -148,6 +151,20 @@ class FROST:
             for secret_commitment in secret_commitments:
                 public_key = public_key + secret_commitment
             return public_key
+
+        def generate_nonces(self, amount):
+            Q = FROST.secp256k1.Q
+            G = FROST.secp256k1.G()
+
+            # Preprocess(π) ⭢  (i, ⟨(D_ij, E_ij)⟩), 1 ≤ j ≤ π
+            for _ in range(amount):
+                # (d_ij, e_ij) ⭠ $ ℤ*_q x ℤ*_q
+                nonce_pair = [secrets.randbits(256) % Q, secrets.randbits(256) % Q]
+                # (D_ij, E_ij) = (g^d_ij, g^e_ij)
+                nonce_commitment_pair = [nonce_pair[0] * G, nonce_pair[1] * G]
+
+                self.nonce_pairs.append(nonce_pair)
+                self.nonce_commitment_pairs.append(nonce_commitment_pair)
 
 
     class Point:
