@@ -110,6 +110,16 @@ class FROST:
                 y = y + self.coefficients[i] * x**i
             return y % FROST.secp256k1.Q
 
+        def lagrange_coefficient(self, participant_indexes):
+            Q = FROST.secp256k1.Q
+            # λ_i = ∏ p_j/(p_j - p_i), 1 ≤ j ≤ α, j ≠ i
+            numerator = 1
+            denominator = 1
+            for index in participant_indexes:
+                numerator = numerator * index
+                denominator = denominator * (index - self.index)
+            return (numerator * pow(denominator, Q - 2, Q)) % Q
+
         def verify_share(self, y, coefficient_commitments):
             Q = FROST.secp256k1.Q
             G = FROST.secp256k1.G()
