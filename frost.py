@@ -108,7 +108,7 @@ class FROST:
             y = self.coefficients[0]
             for i in range(1, len(self.coefficients)):
                 y = y + self.coefficients[i] * x**i
-            return y
+            return y % FROST.secp256k1.Q
 
         def verify_share(self, y, coefficient_commitments):
             Q = FROST.secp256k1.Q
@@ -125,7 +125,7 @@ class FROST:
             aggregate_share = self.shares[self.index - 1]
             for share in shares:
                 aggregate_share = aggregate_share + share
-            self.aggregate_share = aggregate_share
+            self.aggregate_share = aggregate_share % FROST.secp256k1.Q
 
         def public_verification_share(self):
             G = FROST.secp256k1.G()
