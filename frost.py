@@ -248,6 +248,9 @@ class FROST:
 
 class Tests(unittest.TestCase):
     def test_keygen(self):
+        Q = FROST.secp256k1.Q
+        G = FROST.secp256k1.G()
+
         p1 = FROST.Participant(index=1, threshold=2, participants=3)
         p2 = FROST.Participant(index=2, threshold=2, participants=3)
         p3 = FROST.Participant(index=3, threshold=2, participants=3)
@@ -318,6 +321,29 @@ class Tests(unittest.TestCase):
 
         self.assertEqual(pk1, pk2)
         self.assertEqual(pk2, pk3)
+
+        # Reconstruct secret
+        l1 = p1.lagrange_coefficient([2])
+        l2 = p2.lagrange_coefficient([1])
+        secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1.lagrange_coefficient([3])
+        l3 = p3.lagrange_coefficient([1])
+        secret = ((p1.aggregate_share * l1) + (p3.aggregate_share * l3)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l2 = p2.lagrange_coefficient([3])
+        l3 = p3.lagrange_coefficient([2])
+        secret = ((p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1.lagrange_coefficient([2, 3])
+        l2 = p2.lagrange_coefficient([1, 3])
+        l3 = p3.lagrange_coefficient([1, 2])
+        secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
+        self.assertEqual(secret * G, pk1)
+
 
 if __name__ == '__main__':
     unittest.main()
