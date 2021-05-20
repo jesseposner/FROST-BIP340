@@ -50,9 +50,9 @@ class FROST:
             # 1. Generate polynomial with random coefficients, and with degree
             # equal to the threshold minus one.
             #
-            # (a_i0, . . ., a_i(t - 1)) ⭠ $ ℤ_q
+            # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
             self.coefficients = [secrets.randbits(256) % Q for _ in range(self.threshold)]
-            # 2. Compute proof of knowledge of secret a_i0.
+            # 2. Compute proof of knowledge of secret a_i_0.
             #
             # k ⭠ ℤ_q
             nonce = secrets.randbits(256) % Q
@@ -62,24 +62,24 @@ class FROST:
             index_byte = int.to_bytes(self.index, 1, 'big')
             # 𝚽
             context_bytes = self.CONTEXT
-            # g^a_i0
+            # g^a_i_0
             secret = self.coefficients[0]
             secret_commitment = secret * G
             secret_commitment_bytes = secret_commitment.sec_serialize()
             # R_i
             nonce_commitment_bytes = nonce_commitment.sec_serialize()
-            # c_i = H(i, 𝚽, g^a_i0, R_i)
+            # c_i = H(i, 𝚽, g^a_i_0, R_i)
             challenge_input = index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
             challenge_hash_bytes = sha256(challenge_input).digest()
             challenge_hash_int = int.from_bytes(challenge_hash_bytes, 'big')
-            # μ_i = k + a_i0 * c_i
+            # μ_i = k + a_i_0 * c_i
             s = (nonce + secret * challenge_hash_int) % Q
             # σ_i = (R_i, μ_i)
             self.proof_of_knowledge = [nonce_commitment, s]
             # 3. Compute coefficient commitments.
             #
-            # C_i = ⟨𝜙_i0, ..., 𝜙_i(t - 1)⟩
-            # 𝜙_ij = g^a_ij, 0 ≤ j ≤ t - 1
+            # C_i = ⟨𝜙_i_0, ..., 𝜙_i_(t - 1)⟩
+            # 𝜙_i_j = g^a_i_j, 0 ≤ j ≤ t - 1
             self.coefficient_commitments = [coefficient * G for coefficient in self.coefficients]
 
         def verify_proof_of_knowledge(self, proof, secret_commitment, index):
@@ -88,18 +88,18 @@ class FROST:
             index_byte = int.to_bytes(index, 1, 'big')
             # 𝚽
             context_bytes = self.CONTEXT
-            # g^a_l0
+            # g^a_l_0
             secret_commitment_bytes = secret_commitment.sec_serialize()
             # R_l
             nonce_commitment = proof[0]
             nonce_commitment_bytes = nonce_commitment.sec_serialize()
-            # c_l = H(l, 𝚽, g^a_l0, R_l)
+            # c_l = H(l, 𝚽, g^a_l_0, R_l)
             challenge_input = index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
             challenge_hash_bytes = sha256(challenge_input).digest()
             challenge_hash_int = int.from_bytes(challenge_hash_bytes, 'big')
             # μ_l
             s = proof[1]
-            # R_l ≟ g^μl * 𝜙_l0^-cl, 1 ≤ l ≤ n, l ≠ i
+            # R_l ≟ g^μ_l * 𝜙_l_0^-c_l, 1 ≤ l ≤ n, l ≠ i
             return nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash_int) * secret_commitment
 
         def generate_shares(self):
@@ -107,7 +107,7 @@ class FROST:
             self.shares = [self.evaluate_polynomial(x) for x in range(1, self.participants + 1)]
 
         def evaluate_polynomial(self, x):
-            # f_i(x) = ∑ a_ij * x^j, 0 ≤ j ≤ t - 1
+            # f_i(x) = ∑ a_i_j * x^j, 0 ≤ j ≤ t - 1
             y = self.coefficients[0]
             for i in range(1, len(self.coefficients)):
                 y = y + self.coefficients[i] * x**i
@@ -126,11 +126,11 @@ class FROST:
         def verify_share(self, y, coefficient_commitments):
             Q = FROST.secp256k1.Q
             G = FROST.secp256k1.G()
-            # ∏ 𝜙_lk^i^k mod q, 0 ≤ k ≤ t - 1
+            # ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
             expected_y_commitment = FROST.Point()
             for k in range(len(coefficient_commitments)):
                 expected_y_commitment = expected_y_commitment + ((self.index ** k % Q) * coefficient_commitments[k])
-            # g^f_l(i) ≟ ∏ 𝜙_lk^i^k mod q, 0 ≤ k ≤ t - 1
+            # g^f_l(i) ≟ ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
             return y * G == expected_y_commitment
 
         def aggregate_shares(self, shares):
@@ -146,7 +146,7 @@ class FROST:
             return self.aggregate_share * G
 
         def public_key(self, secret_commitments):
-            # Y = ∏ 𝜙_j0, 1 ≤ j ≤ n
+            # Y = ∏ 𝜙_j_0, 1 ≤ j ≤ n
             public_key = self.coefficient_commitments[0]
             for secret_commitment in secret_commitments:
                 public_key = public_key + secret_commitment
@@ -156,11 +156,11 @@ class FROST:
             Q = FROST.secp256k1.Q
             G = FROST.secp256k1.G()
 
-            # Preprocess(π) ⭢  (i, ⟨(D_ij, E_ij)⟩), 1 ≤ j ≤ π
+            # Preprocess(π) ⭢  (i, ⟨(D_i_j, E_i_j)⟩), 1 ≤ j ≤ π
             for _ in range(amount):
-                # (d_ij, e_ij) ⭠ $ ℤ*_q x ℤ*_q
+                # (d_i_j, e_i_j) ⭠ $ ℤ*_q x ℤ*_q
                 nonce_pair = [secrets.randbits(256) % Q, secrets.randbits(256) % Q]
-                # (D_ij, E_ij) = (g^d_ij, g^e_ij)
+                # (D_i_j, E_i_j) = (g^d_i_j, g^e_i_j)
                 nonce_commitment_pair = [nonce_pair[0] * G, nonce_pair[1] * G]
 
                 self.nonce_pairs.append(nonce_pair)
