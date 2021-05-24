@@ -198,6 +198,88 @@ class FROST:
             # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
             return first_nonce + (second_nonce * binding_value) + lagrange_coefficient * aggregate_share * challenge_hash
 
+    class Aggregator:
+        """Class representing the signature aggregator."""
+
+        def __init__(self, public_key, message, nonce_commitment_pair_list, participant_indexes):
+            # Y
+            self.public_key = public_key
+            # m
+            self.message = message
+            # L
+            self.nonce_commitment_pair_list = nonce_commitment_pair_list
+            # S = α: t ≤ α ≤ n
+            self.participant_indexes = participant_indexes
+            # B
+            self.nonce_commitment_pairs = []
+
+        @classmethod
+        def group_commitment(self, message, nonce_commitment_pairs, participant_indexes):
+            # R
+            group_commitment = FROST.Point()
+            for index in participant_indexes:
+                # p_l = H_1(l, m, B), l ∈ S
+                binding_value = self.binding_value(index, message, nonce_commitment_pairs, participant_indexes)
+                # D_l
+                first_commitment = nonce_commitment_pairs[index-1][0]
+                # E_l
+                second_commitment = nonce_commitment_pairs[index-1][1]
+                # R = ∏ D_l * (E_l)^p_l, l ∈ S
+                group_commitment = group_commitment + (first_commitment + (binding_value * second_commitment))
+            return group_commitment
+
+        @classmethod
+        def binding_value(self, index, message, nonce_commitment_pairs, participant_indexes):
+            binding_value = sha256()
+            # l
+            index_byte = int.to_bytes(index, 1, 'big')
+            # B
+            nonce_commitment_pairs_bytes = []
+            for index in participant_indexes:
+                participant_pair = nonce_commitment_pairs[index-1]
+                participant_pair_bytes = b''.join([commitment.sec_serialize() for commitment in participant_pair])
+                nonce_commitment_pairs_bytes.append(participant_pair_bytes)
+            nonce_commitment_pairs_bytes = b''.join(nonce_commitment_pairs_bytes)
+            # p_l = H_1(l, m, B), l ∈ S
+            binding_value = sha256()
+            binding_value.update(index_byte)
+            binding_value.update(message)
+            binding_value.update(nonce_commitment_pairs_bytes)
+            binding_value_bytes = binding_value.digest()
+
+            return int.from_bytes(binding_value_bytes, 'big')
+
+        @classmethod
+        def challenge_hash(self, nonce_commitment, public_key, message):
+            challenge_hash = sha256()
+            challenge_hash.update(nonce_commitment.sec_serialize())
+            challenge_hash.update(public_key.sec_serialize())
+            challenge_hash.update(message)
+            challenge_hash_bytes = challenge_hash.digest()
+
+            return int.from_bytes(challenge_hash_bytes, 'big')
+
+        def signing_inputs(self):
+            # B = ⟨(i, D_i, E_i)⟩_i∈S
+            nonce_commitment_pairs = [None] * max(self.participant_indexes)
+            # P_i ∈ S
+            for index in self.participant_indexes:
+                # L_i
+                participant_pairs = self.nonce_commitment_pair_list[index-1]
+                # Fetch next available commitment
+                nonce_commitment_pairs[index-1] = participant_pairs.pop()
+            self.nonce_commitment_pairs = nonce_commitment_pairs
+            # (m, B)
+            return [self.message, nonce_commitment_pairs]
+
+        def signature(self, signature_shares):
+            # R
+            group_commitment = self.group_commitment(self.message, self.nonce_commitment_pairs, self.participant_indexes)
+            challenge_hash = self.challenge_hash(group_commitment, self.public_key, self.message)
+            # TODO: verify each signature share
+            # sigma = (R, z)
+            return group_commitment, sum(signature_shares)
+
     class Point:
         """Class representing an elliptic curve point."""
 
