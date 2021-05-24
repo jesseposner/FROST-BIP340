@@ -43,6 +43,8 @@ class FROST:
             self.nonce_pairs = []
             # L_i
             self.nonce_commitment_pairs = []
+            # Y
+            self.public_key = None
 
         def init_keygen(self):
             Q = FROST.secp256k1.Q
@@ -151,11 +153,12 @@ class FROST:
             # Y_i = g^s_i
             return self.aggregate_share * G
 
-        def public_key(self, secret_commitments):
+        def derive_public_key(self, secret_commitments):
             # Y = ∏ 𝜙_j_0, 1 ≤ j ≤ n
             public_key = self.coefficient_commitments[0]
             for secret_commitment in secret_commitments:
                 public_key = public_key + secret_commitment
+            self.public_key = public_key
             return public_key
 
         def generate_nonces(self, amount):
@@ -338,9 +341,9 @@ class Tests(unittest.TestCase):
         p3.aggregate_shares([p1.shares[p3.index-1], p2.shares[p3.index-1]])
 
         # Round 2.4
-        pk1 = p1.public_key([p2.coefficient_commitments[0], p3.coefficient_commitments[0]])
-        pk2 = p2.public_key([p1.coefficient_commitments[0], p3.coefficient_commitments[0]])
-        pk3 = p3.public_key([p1.coefficient_commitments[0], p2.coefficient_commitments[0]])
+        pk1 = p1.derive_public_key([p2.coefficient_commitments[0], p3.coefficient_commitments[0]])
+        pk2 = p2.derive_public_key([p1.coefficient_commitments[0], p3.coefficient_commitments[0]])
+        pk3 = p3.derive_public_key([p1.coefficient_commitments[0], p2.coefficient_commitments[0]])
 
         self.assertEqual(pk1, pk2)
         self.assertEqual(pk2, pk3)
