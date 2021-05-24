@@ -123,6 +123,8 @@ class FROST:
             numerator = 1
             denominator = 1
             for index in participant_indexes:
+                if index == self.index:
+                    continue
                 numerator = numerator * index
                 denominator = denominator * (index - self.index)
             return (numerator * pow(denominator, Q - 2, Q)) % Q
