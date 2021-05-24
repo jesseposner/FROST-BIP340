@@ -69,8 +69,12 @@ class FROST:
             # R_i
             nonce_commitment_bytes = nonce_commitment.sec_serialize()
             # c_i = H(i, 𝚽, g^a_i_0, R_i)
-            challenge_input = index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
-            challenge_hash_bytes = sha256(challenge_input).digest()
+            challenge_hash = sha256()
+            challenge_hash.update(index_byte)
+            challenge_hash.update(context_bytes)
+            challenge_hash.update(secret_commitment_bytes)
+            challenge_hash.update(nonce_commitment_bytes)
+            challenge_hash_bytes = challenge_hash.digest()
             challenge_hash_int = int.from_bytes(challenge_hash_bytes, 'big')
             # μ_i = k + a_i_0 * c_i
             s = (nonce + secret * challenge_hash_int) % Q
