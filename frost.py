@@ -175,6 +175,28 @@ class FROST:
                 self.nonce_pairs.append(nonce_pair)
                 self.nonce_commitment_pairs.append(nonce_commitment_pair)
 
+        def sign(self, message, nonce_commitment_pairs, participant_indexes):
+            # R
+            group_commitment = FROST.Aggregator.group_commitment(message, nonce_commitment_pairs, participant_indexes)
+
+            # c = H_2(R, Y, m)
+            challenge_hash = FROST.Aggregator.challenge_hash(group_commitment, self.public_key, message)
+
+            # Fetch next available nonce pair
+            nonce_pair = self.nonce_pairs.pop()
+            # d_i
+            first_nonce = nonce_pair[0]
+            # e_i
+            second_nonce = nonce_pair[1]
+            # p_i = H_1(i, m, B), i ∈ S
+            binding_value = FROST.Aggregator.binding_value(self.index, message, nonce_commitment_pairs, participant_indexes)
+            # λ_i
+            lagrange_coefficient = self.lagrange_coefficient(participant_indexes)
+            # s_i
+            aggregate_share = self.aggregate_share
+
+            # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
+            return first_nonce + (second_nonce * binding_value) + lagrange_coefficient * aggregate_share * challenge_hash
 
     class Point:
         """Class representing an elliptic curve point."""
