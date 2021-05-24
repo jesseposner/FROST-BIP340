@@ -474,6 +474,53 @@ class Tests(unittest.TestCase):
         secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
         self.assertEqual(secret * G, pk1)
 
+    def test_sign(self):
+        p1 = FROST.Participant(index=1, threshold=2, participants=3)
+        p2 = FROST.Participant(index=2, threshold=2, participants=3)
+        p3 = FROST.Participant(index=3, threshold=2, participants=3)
+
+        # KeyGen
+        p1.init_keygen()
+        p2.init_keygen()
+        p3.init_keygen()
+
+        p1.generate_shares()
+        p2.generate_shares()
+        p3.generate_shares()
+
+        p1.aggregate_shares([p2.shares[p1.index-1], p3.shares[p1.index-1]])
+        p2.aggregate_shares([p1.shares[p2.index-1], p3.shares[p2.index-1]])
+        p3.aggregate_shares([p1.shares[p3.index-1], p2.shares[p3.index-1]])
+
+        p1.derive_public_key([p2.coefficient_commitments[0], p3.coefficient_commitments[0]])
+        p2.derive_public_key([p1.coefficient_commitments[0], p3.coefficient_commitments[0]])
+        pk = p3.derive_public_key([p1.coefficient_commitments[0], p2.coefficient_commitments[0]])
+
+        # NonceGen
+        p1.generate_nonces(1)
+        p2.generate_nonces(1)
+        p3.generate_nonces(1)
+
+        # Sign
+        msg = b'fnord!'
+        participant_indexes = [1, 2, 3]
+        agg = FROST.Aggregator(pk, msg, [p1.nonce_commitment_pairs, p2.nonce_commitment_pairs, p3.nonce_commitment_pairs], participant_indexes)
+        message, nonce_commitment_pairs = agg.signing_inputs()
+
+        s1 = p1.sign(message, nonce_commitment_pairs, participant_indexes)
+        s2 = p2.sign(message, nonce_commitment_pairs, participant_indexes)
+        s3 = p3.sign(message, nonce_commitment_pairs, participant_indexes)
+
+        # sigma = (R, z)
+        nonce_commitment, s = agg.signature([s1, s2, s3])
+
+        # verify
+        G = FROST.secp256k1.G()
+        # c
+        challenge_hash = FROST.Aggregator.challenge_hash(nonce_commitment, pk, msg)
+        # R ≟ g^z * Y^-c
+        self.assertTrue(nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash) * pk)
+
 
 if __name__ == '__main__':
     unittest.main()
