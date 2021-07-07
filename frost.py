@@ -114,9 +114,10 @@ class FROST:
 
         def evaluate_polynomial(self, x):
             # f_i(x) = ∑ a_i_j * x^j, 0 ≤ j ≤ t - 1
-            y = self.coefficients[0]
-            for i in range(1, len(self.coefficients)):
-                y = y + self.coefficients[i] * x**i
+            # Horner's method
+            y = 0
+            for i in range(len(self.coefficients) - 1, -1, -1):
+                y = y * x + self.coefficients[i]
             return y % FROST.secp256k1.Q
 
         def lagrange_coefficient(self, participant_indexes):
