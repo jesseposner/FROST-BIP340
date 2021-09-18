@@ -1,0 +1,72 @@
+digraph G {
+  dpi = 600;
+  label = "FROST";
+  labelloc = "t"
+
+ // broadcast
+  subgraph cluster_net {
+      broadcast;
+      label="Network";
+     graph[style=dotted];
+  }
+
+  broadcast [shape=triangle];
+
+ // Setup
+  subgraph cluster_setup {
+      threshold; n_signers; my_index; seckey32;
+      label="0. Setup";
+      color=purple;
+  }
+
+  // KeyGen
+  subgraph cluster_keygen {
+      keygen_init; threshold; n_signers; my_index; seckey32; keygen_session; coeff_pk; pubkeys; pubkey_combine; combined_pk; generate_shares; my_shares; pubcoeff; gen_shares;
+      label="1. KeyGen";
+      fontcolor=blue;
+      color=blue;
+   }
+
+  // keygen_init
+  keygen_init [shape=box];
+
+  // out
+  keygen_init -> keygen_session;
+  keygen_init -> coeff_pk;
+  // in
+  threshold -> keygen_init;
+  n_signers -> keygen_init;
+  my_index -> keygen_init;
+  seckey32 -> keygen_init;
+
+  // broadcast
+  broadcast -> pubkeys [style=dotted];
+  coeff_pk -> pubkeys;
+
+  // pubkey_combine
+  pubkey_combine [shape=box];
+
+  // out
+  pubkey_combine -> combined_pk;
+  pubkey_combine -> keygen_session;
+  // in
+  keygen_session -> pubkey_combine;
+  pubkeys -> pubkey_combine;
+
+  // generate_shares
+  generate_shares [shape=box];
+
+  // out
+  generate_shares -> gen_shares;
+  generate_shares -> pubcoeff;
+  // in
+  keygen_session -> generate_shares;
+  seckey32 -> generate_shares;
+
+  // broadcast
+  broadcast -> my_shares [style=dotted];
+  gen_shares -> "gen_shares[i]";
+  gen_shares -> "gen_shares[j..n, j ≠ i]"
+  "gen_shares[i]" -> my_shares;
+  "gen_shares[j..n, j ≠ i]" -> broadcast [style=dotted];
+}
