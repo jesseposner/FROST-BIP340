@@ -323,10 +323,11 @@ class FROST:
             return not self == other
 
         def __neg__(self):
+            P = FROST.secp256k1.P
             if self.is_zero():
                 return self
 
-            return self.__class__(self.x, self.P - self.y)
+            return self.__class__(self.x, P - self.y)
 
         def dbl(self):
             x = self.x
