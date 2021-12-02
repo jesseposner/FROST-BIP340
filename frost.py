@@ -109,7 +109,7 @@ class FROST:
             return nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash_int) * secret_commitment
 
         def generate_shares(self):
-            # (i, f_i(i)), (l, f_i(l)
+            # (i, f_i(i)), (l, f_i(l))
             self.shares = [self.evaluate_polynomial(x) for x in range(1, self.participants + 1)]
 
         def evaluate_polynomial(self, x):
@@ -252,6 +252,7 @@ class FROST:
 
         @classmethod
         def challenge_hash(self, nonce_commitment, public_key, message):
+            # c = H_2(R, Y, m)
             challenge_hash = sha256()
             challenge_hash.update(nonce_commitment.sec_serialize())
             challenge_hash.update(public_key.sec_serialize())
@@ -276,9 +277,10 @@ class FROST:
         def signature(self, signature_shares):
             # R
             group_commitment = self.group_commitment(self.message, self.nonce_commitment_pairs, self.participant_indexes)
+            # c = H_2(R, Y, m)
             challenge_hash = self.challenge_hash(group_commitment, self.public_key, self.message)
             # TODO: verify each signature share
-            # sigma = (R, z)
+            # σ = (R, z)
             return group_commitment, sum(signature_shares)
 
     class Point:
@@ -512,12 +514,12 @@ class Tests(unittest.TestCase):
         s2 = p2.sign(message, nonce_commitment_pairs, participant_indexes)
         s3 = p3.sign(message, nonce_commitment_pairs, participant_indexes)
 
-        # sigma = (R, z)
+        # σ = (R, z)
         nonce_commitment, s = agg.signature([s1, s2, s3])
 
         # verify
         G = FROST.secp256k1.G()
-        # c
+        # c = H_2(R, Y, m)
         challenge_hash = FROST.Aggregator.challenge_hash(nonce_commitment, pk, msg)
         # R ≟ g^z * Y^-c
         self.assertTrue(nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash) * pk)
