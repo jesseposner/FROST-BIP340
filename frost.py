@@ -328,7 +328,8 @@ class FROST:
             if self.is_zero():
                 return self
 
-            return self.__class__(self.x, self.P - self.y)
+            P = FROST.secp256k1.P
+            return self.__class__(self.x, P - self.y)
 
         def dbl(self):
             x = self.x
