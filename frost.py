@@ -507,16 +507,15 @@ class Tests(unittest.TestCase):
 
         # Sign
         msg = b'fnord!'
-        participant_indexes = [1, 2, 3]
-        agg = FROST.Aggregator(pk, msg, [p1.nonce_commitment_pairs, p2.nonce_commitment_pairs, p3.nonce_commitment_pairs], participant_indexes)
+        participant_indexes = [1, 2]
+        agg = FROST.Aggregator(pk, msg, [p1.nonce_commitment_pairs, p2.nonce_commitment_pairs], participant_indexes)
         message, nonce_commitment_pairs = agg.signing_inputs()
 
         s1 = p1.sign(message, nonce_commitment_pairs, participant_indexes)
         s2 = p2.sign(message, nonce_commitment_pairs, participant_indexes)
-        s3 = p3.sign(message, nonce_commitment_pairs, participant_indexes)
 
         # σ = (R, z)
-        nonce_commitment, s = agg.signature([s1, s2, s3])
+        nonce_commitment, s = agg.signature([s1, s2])
 
         # verify
         G = FROST.secp256k1.G()
