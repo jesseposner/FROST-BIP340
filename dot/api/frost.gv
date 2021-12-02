@@ -7,21 +7,20 @@ digraph G {
   subgraph cluster_net {
       broadcast;
       label="Network";
-     graph[style=dotted];
   }
 
   broadcast [shape=triangle];
 
  // Setup
   subgraph cluster_setup {
-      threshold; n_signers; my_index; seckey32;
+      threshold; n_signers; my_index; seckey32; session_id32; msg32; p_indexes; n_participants;
       label="0. Setup";
       color=purple;
   }
 
   // KeyGen
   subgraph cluster_keygen {
-      keygen_init; threshold; n_signers; my_index; seckey32; keygen_session; coeff_pk; pubkeys; pubkey_combine; combined_pk; generate_shares; my_shares; pubcoeff; gen_shares;
+      keygen_init; threshold; n_participants; my_index; seckey32; keygen_session; rec_pubcoeff; gen_shares_and_pubkey; combined_pk; rec_shares; pubcoeff; shares; aggregate_shares; agg_share;
       label="1. KeyGen";
       fontcolor=blue;
       color=blue;
@@ -32,41 +31,101 @@ digraph G {
 
   // out
   keygen_init -> keygen_session;
-  keygen_init -> coeff_pk;
+  keygen_init -> pubcoeff;
   // in
   threshold -> keygen_init;
-  n_signers -> keygen_init;
+  n_participants -> keygen_init;
   my_index -> keygen_init;
   seckey32 -> keygen_init;
 
   // broadcast
-  broadcast -> pubkeys [style=dotted];
-  coeff_pk -> pubkeys;
+  broadcast -> rec_pubcoeff [style=dotted];
+  pubcoeff -> broadcast [style=dotted];
 
-  // pubkey_combine
-  pubkey_combine [shape=box];
+  // gen_shares_and_pubkey
+  gen_shares_and_pubkey [shape=box];
 
   // out
-  pubkey_combine -> combined_pk;
-  pubkey_combine -> keygen_session;
+  gen_shares_and_pubkey  -> shares;
+  gen_shares_and_pubkey -> combined_pk;
+  gen_shares_and_pubkey -> keygen_session;
   // in
-  keygen_session -> pubkey_combine;
-  pubkeys -> pubkey_combine;
+  keygen_session -> gen_shares_and_pubkey;
+  rec_pubcoeff -> gen_shares_and_pubkey;
 
   // generate_shares
-  generate_shares [shape=box];
+  // generate_shares [shape=box];
 
   // out
-  generate_shares -> gen_shares;
-  generate_shares -> pubcoeff;
+  // generate_shares -> shares;
+  // generate_shares -> keygen_session;
   // in
-  keygen_session -> generate_shares;
-  seckey32 -> generate_shares;
+  // keygen_session -> generate_shares;
 
   // broadcast
-  broadcast -> my_shares [style=dotted];
-  gen_shares -> "gen_shares[i]";
-  gen_shares -> "gen_shares[j..n, j ≠ i]"
-  "gen_shares[i]" -> my_shares;
-  "gen_shares[j..n, j ≠ i]" -> broadcast [style=dotted];
+  broadcast -> rec_shares [style=dotted];
+  shares -> broadcast [style=dotted];
+
+  // aggregate_shares
+  aggregate_shares [shape=box];
+
+  // out
+  aggregate_shares -> agg_share;
+  // in
+  rec_shares -> aggregate_shares;
+  keygen_session -> aggregate_shares;
+
+  // SigGen
+  subgraph cluster_sigen {
+      sign_init; pubnonce; sign_session; session_id32; msg32; p_indexes; combined_pk; agg_share; rec_pubnonce; partial_sign; partial_sig; combined_pubnonce; aggregate_partial_sigs; sig64; partial_sigs; rec_partial_sigs;
+      label="2. SigGen";
+      fontcolor=red;
+      color=red;
+   }
+
+  // sign_init
+  sign_init [shape=box];
+
+  // out
+  sign_init -> pubnonce;
+  sign_init -> sign_session;
+  // in
+  session_id32 -> sign_init;
+  msg32 -> sign_init;
+  combined_pk -> sign_init;
+  agg_share -> sign_init;
+  my_index -> sign_init;
+
+  // broadcast
+  broadcast -> rec_pubnonce [style=dotted];
+  pubnonce -> broadcast [style=dotted];
+
+  // partial_sign
+  partial_sign [shape=box];
+
+  // out
+  partial_sign -> partial_sig;
+  partial_sign -> combined_pubnonce;
+
+  // in
+  sign_session -> partial_sign;
+  rec_pubnonce -> partial_sign;
+  n_signers -> partial_sign;
+  p_indexes -> partial_sign;
+
+  // broadcast
+  broadcast -> rec_partial_sigs [style=dotted];
+  rec_partial_sigs -> partial_sigs;
+  partial_sig -> partial_sigs;
+
+  // aggregate_partial_sigs
+  aggregate_partial_sigs [shape=box];
+
+  // out
+  aggregate_partial_sigs -> sig64;
+
+  // in
+  partial_sigs -> aggregate_partial_sigs;
+  combined_pubnonce -> aggregate_partial_sigs;
+  n_signers -> aggregate_partial_sigs;
 }
