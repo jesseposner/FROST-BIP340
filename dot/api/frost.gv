@@ -1,7 +1,7 @@
 digraph G {
   dpi = 600;
   label = "FROST";
-  labelloc = "t"
+  labelloc = "t";
 
  // broadcast
   subgraph cluster_net {
@@ -20,7 +20,7 @@ digraph G {
 
   // KeyGen
   subgraph cluster_keygen {
-      keygen_init; threshold; n_participants; my_index; seckey32; keygen_session; rec_pubcoeff; gen_shares_and_pubkey; combined_pk; rec_shares; pubcoeff; shares; aggregate_shares; agg_share;
+      keygen_init; threshold; n_participants; my_index; seckey32; combined_pk; pubcoeff; generated_shares; agg_share; counterparty_shares; my_shares; keygen_finalize; my_pubcoeff;
       label="1. KeyGen";
       fontcolor=blue;
       color=blue;
@@ -30,54 +30,39 @@ digraph G {
   keygen_init [shape=box];
 
   // out
-  keygen_init -> keygen_session;
-  keygen_init -> pubcoeff;
+  keygen_init -> generated_shares;
+  keygen_init -> my_pubcoeff;
   // in
   threshold -> keygen_init;
   n_participants -> keygen_init;
-  my_index -> keygen_init;
   seckey32 -> keygen_init;
 
-  // broadcast
-  broadcast -> rec_pubcoeff [style=dotted];
-  pubcoeff -> broadcast [style=dotted];
-
-  // gen_shares_and_pubkey
-  gen_shares_and_pubkey [shape=box];
-
-  // out
-  gen_shares_and_pubkey  -> shares;
-  gen_shares_and_pubkey -> combined_pk;
-  gen_shares_and_pubkey -> keygen_session;
-  // in
-  keygen_session -> gen_shares_and_pubkey;
-  rec_pubcoeff -> gen_shares_and_pubkey;
-
-  // generate_shares
-  // generate_shares [shape=box];
-
-  // out
-  // generate_shares -> shares;
-  // generate_shares -> keygen_session;
-  // in
-  // keygen_session -> generate_shares;
+  generated_shares -> counterparty_shares;
+  generated_shares -> my_shares;
+  my_pubcoeff -> pubcoeff;
 
   // broadcast
-  broadcast -> rec_shares [style=dotted];
-  shares -> broadcast [style=dotted];
+  my_pubcoeff -> broadcast [style=dotted];
+  counterparty_shares -> broadcast [style=dotted];
+  broadcast -> my_shares [style=dashed];
+  broadcast -> pubcoeff [style=dashed];
 
-  // aggregate_shares
-  aggregate_shares [shape=box];
+  // keygen_finalize
+  keygen_finalize [shape=box];
 
   // out
-  aggregate_shares -> agg_share;
+  keygen_finalize -> agg_share;
+  keygen_finalize -> combined_pk;
+
   // in
-  rec_shares -> aggregate_shares;
-  keygen_session -> aggregate_shares;
+  my_shares -> keygen_finalize;
+  pubcoeff -> keygen_finalize;
+  n_signers -> keygen_finalize;
+  threshold -> keygen_finalize;
 
   // SigGen
   subgraph cluster_sigen {
-      sign_init; pubnonce; sign_session; session_id32; msg32; p_indexes; combined_pk; agg_share; rec_pubnonce; partial_sign; partial_sig; combined_pubnonce; aggregate_partial_sigs; sig64; partial_sigs; rec_partial_sigs;
+      sign_init; my_pubnonce; sign_session; session_id32; msg32; p_indexes; combined_pk; agg_share; partial_sign; my_partial_sig; combined_pubnonce; aggregate_partial_sigs; sig64; partial_sigs; pubnonces;
       label="2. SigGen";
       fontcolor=red;
       color=red;
@@ -87,7 +72,7 @@ digraph G {
   sign_init [shape=box];
 
   // out
-  sign_init -> pubnonce;
+  sign_init -> my_pubnonce;
   sign_init -> sign_session;
   // in
   session_id32 -> sign_init;
@@ -96,27 +81,29 @@ digraph G {
   agg_share -> sign_init;
   my_index -> sign_init;
 
+  my_pubnonce -> pubnonces;
+
   // broadcast
-  broadcast -> rec_pubnonce [style=dotted];
-  pubnonce -> broadcast [style=dotted];
+  broadcast -> pubnonces [style=dashed];
+  my_pubnonce -> broadcast [style=dotted];
 
   // partial_sign
   partial_sign [shape=box];
 
   // out
-  partial_sign -> partial_sig;
+  partial_sign -> my_partial_sig;
   partial_sign -> combined_pubnonce;
 
   // in
   sign_session -> partial_sign;
-  rec_pubnonce -> partial_sign;
+  pubnonces -> partial_sign;
   n_signers -> partial_sign;
   p_indexes -> partial_sign;
 
   // broadcast
-  broadcast -> rec_partial_sigs [style=dotted];
-  rec_partial_sigs -> partial_sigs;
-  partial_sig -> partial_sigs;
+  broadcast -> partial_sigs [style=dashed];
+  my_partial_sig -> broadcast [style=dotted];
+  my_partial_sig -> partial_sigs;
 
   // aggregate_partial_sigs
   aggregate_partial_sigs [shape=box];
