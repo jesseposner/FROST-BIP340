@@ -57,7 +57,7 @@ digraph G {
   // in
   my_shares -> keygen_finalize;
   pubcoeff -> keygen_finalize;
-  n_signers -> keygen_finalize;
+  n_participants -> keygen_finalize;
   threshold -> keygen_finalize;
 
   // SigGen
