@@ -3,7 +3,7 @@ digraph G {
   label = "FROST";
   labelloc = "t";
 
- // broadcast
+ broadcast
   subgraph cluster_net {
       broadcast;
       label="Network";
@@ -13,106 +13,144 @@ digraph G {
 
  // Setup
   subgraph cluster_setup {
-      threshold; n_signers; my_index; seckey32; session_id32; msg32; p_indexes; n_participants;
+      // threshold; n_signers; my_index; seckey32; session_id32; msg32; p_indexes; n_participants;
+      pubkey; keypair; n_participants; threshold; seckey;
       label="0. Setup";
       color=purple;
   }
 
-  // KeyGen
+  keypair -> pubkey;
+  keypair -> seckey;
+
+  // broadcast
+  broadcast -> pubkeys;
+  pubkey -> broadcast;
+  pubkey -> pubkeys;
+
+  // Musig2 KeyGen
   subgraph cluster_keygen {
-      keygen_init; threshold; n_participants; my_index; seckey32; combined_pk; pubcoeff; generated_shares; agg_share; counterparty_shares; my_shares; keygen_finalize; my_pubcoeff;
+      // keygen_init; threshold; n_participants; my_index; seckey32; combined_pk; pubcoeff; generated_shares; agg_share; counterparty_shares; my_shares; keygen_finalize; my_pubcoeff;
+      agg_pk; cache; pubkeys; n_participants; musig_pubkey_agg; my_pubcoeff; frost_share_gen; generated_shares; frost_share_agg; agg_share; my_shares;
       label="1. KeyGen";
       fontcolor=blue;
       color=blue;
    }
 
-  // keygen_init
-  keygen_init [shape=box];
+  // musig_pubkey_agg
+  musig_pubkey_agg [shape=box];
 
   // out
-  keygen_init -> generated_shares;
-  keygen_init -> my_pubcoeff;
+  musig_pubkey_agg -> agg_pk;
+  musig_pubkey_agg -> cache;
   // in
-  threshold -> keygen_init;
-  n_participants -> keygen_init;
-  seckey32 -> keygen_init;
+  pubkeys -> musig_pubkey_agg;
+  n_participants -> musig_pubkey_agg;
 
-  generated_shares -> counterparty_shares;
-  generated_shares -> my_shares;
-  my_pubcoeff -> pubcoeff;
+  // FROST ShareGen
+
+  // frost_share_gen
+  frost_share_gen [shape=box];
+
+  // out
+  frost_share_gen -> my_pubcoeff;
+  frost_share_gen -> generated_shares;
+
+  // in
+  threshold -> frost_share_gen;
+  n_participants -> frost_share_gen;
+  keypair -> frost_share_gen;
+  cache -> frost_share_gen;
 
   // broadcast
-  my_pubcoeff -> broadcast [style=dotted];
-  counterparty_shares -> broadcast [style=dotted];
-  broadcast -> my_shares [style=dashed];
-  broadcast -> pubcoeff [style=dashed];
+  broadcast -> my_shares;
+  generated_shares -> broadcast;
+  generated_shares -> my_shares;
 
-  // keygen_finalize
-  keygen_finalize [shape=box];
+  // frost_share_agg
+  frost_share_agg [shape=box];
 
   // out
-  keygen_finalize -> agg_share;
-  keygen_finalize -> combined_pk;
+  frost_share_agg -> agg_share;
+  // in
+  my_shares -> frost_share_agg;
+  n_participants -> frost_share_agg
+
+  // Musig2 NonceGen
+  subgraph cluster_noncegen {
+      // sign_init; my_pubnonce; sign_session; session_id32; msg32; p_indexes; combined_pk; agg_share; partial_sign; my_partial_sig; combined_pubnonce; aggregate_partial_sigs; sig64; partial_sigs; pubnonces;
+      musig_nonce_gen; secnonce; pubnonce; pubnonces; agg_pubnonce; musig_nonce_agg; musig_nonce_process; session; session_id32; msg32; n_signers;
+      label="2. NonceGen";
+      fontcolor=red;
+      color=red;
+  }
+
+  // musig_nonce_gen
+  musig_nonce_gen [shape=box];
+
+  // out
+  musig_nonce_gen -> secnonce;
+  musig_nonce_gen -> pubnonce;
+  // in
+  session_id32 -> musig_nonce_gen;
+  seckey -> musig_nonce_gen;
+  msg32 -> musig_nonce_gen;
+
+  // broadcast
+  pubnonce -> broadcast;
+  broadcast -> pubnonces;
+  pubnonce -> pubnonces;
+
+  // musig_nonce_agg
+  musig_nonce_agg [shape=box];
+
+  // out
+  musig_nonce_agg -> agg_pubnonce;
+  // in
+  pubnonces -> musig_nonce_agg;
+  n_signers -> musig_nonce_agg;
+
+  // musig_nonce_process
+  musig_nonce_process [shape=box];
+
+  // out
+  musig_nonce_process -> session;
 
   // in
-  my_shares -> keygen_finalize;
-  pubcoeff -> keygen_finalize;
-  n_participants -> keygen_finalize;
-  threshold -> keygen_finalize;
+  agg_pubnonce -> musig_nonce_process;
+  msg32 -> musig_nonce_process;
+  cache -> musig_nonce_process;
 
   // SigGen
   subgraph cluster_sigen {
-      sign_init; my_pubnonce; sign_session; session_id32; msg32; p_indexes; combined_pk; agg_share; partial_sign; my_partial_sig; combined_pubnonce; aggregate_partial_sigs; sig64; partial_sigs; pubnonces;
-      label="2. SigGen";
-      fontcolor=red;
-      color=red;
-   }
+      partial_sig; frost_partial_sign; musig_partial_sig_agg; sig64; partial_sigs;
+      label="3. SigGen";
+      fontcolor=forestgreen;
+      color=forestgreen;
+  }
 
-  // sign_init
-  sign_init [shape=box];
+  // frost_partial_sign
+  frost_partial_sign [shape=box];
 
   // out
-  sign_init -> my_pubnonce;
-  sign_init -> sign_session;
+  frost_partial_sign -> partial_sig;
   // in
-  session_id32 -> sign_init;
-  msg32 -> sign_init;
-  combined_pk -> sign_init;
-  agg_share -> sign_init;
-  my_index -> sign_init;
-
-  my_pubnonce -> pubnonces;
+  secnonce -> frost_partial_sign;
+  agg_share -> frost_partial_sign;
+  session -> frost_partial_sign;
+  n_signers -> frost_partial_sign;
 
   // broadcast
-  broadcast -> pubnonces [style=dashed];
-  my_pubnonce -> broadcast [style=dotted];
+  partial_sig -> broadcast;
+  partial_sig -> partial_sigs;
+  broadcast -> partial_sigs;
 
-  // partial_sign
-  partial_sign [shape=box];
-
-  // out
-  partial_sign -> my_partial_sig;
-  partial_sign -> combined_pubnonce;
-
-  // in
-  sign_session -> partial_sign;
-  pubnonces -> partial_sign;
-  n_signers -> partial_sign;
-  p_indexes -> partial_sign;
-
-  // broadcast
-  broadcast -> partial_sigs [style=dashed];
-  my_partial_sig -> broadcast [style=dotted];
-  my_partial_sig -> partial_sigs;
-
-  // aggregate_partial_sigs
-  aggregate_partial_sigs [shape=box];
+  // musig_partial_sig_agg
+  musig_partial_sig_agg [shape=box];
 
   // out
-  aggregate_partial_sigs -> sig64;
-
+  musig_partial_sig_agg -> sig64;
   // in
-  partial_sigs -> aggregate_partial_sigs;
-  combined_pubnonce -> aggregate_partial_sigs;
-  n_signers -> aggregate_partial_sigs;
+  session -> musig_partial_sig_agg;
+  partial_sigs -> musig_partial_sig_agg;
+  n_signers -> musig_partial_sig_agg;
 }
