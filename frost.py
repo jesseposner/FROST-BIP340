@@ -314,6 +314,9 @@ class FROST:
 
             return prefix + self.x.to_bytes(32, 'big')
 
+        def xonly_serialize(self):
+            return self.x.to_bytes(32, 'big')
+
         # point at infinity
         def is_zero(self):
             return self.x == float('inf') or self.y == float('inf')
