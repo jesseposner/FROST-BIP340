@@ -61,7 +61,7 @@ class FROST:
             # R_i = g^k
             nonce_commitment = nonce * G
             # i
-            index_byte = int.to_bytes(self.index, 1, 'big')
+            index_byte = self.index.to_bytes(1, 'big')
             # 𝚽
             context_bytes = self.CONTEXT
             # g^a_i_0
@@ -91,7 +91,7 @@ class FROST:
         def verify_proof_of_knowledge(self, proof, secret_commitment, index):
             G = FROST.secp256k1.G()
             # l
-            index_byte = int.to_bytes(index, 1, 'big')
+            index_byte = index.to_bytes(1, 'big')
             # 𝚽
             context_bytes = self.CONTEXT
             # g^a_l_0
@@ -233,7 +233,7 @@ class FROST:
         def binding_value(self, index, message, nonce_commitment_pairs, participant_indexes):
             binding_value = sha256()
             # l
-            index_byte = int.to_bytes(index, 1, 'big')
+            index_byte = index.to_bytes(1, 'big')
             # B
             nonce_commitment_pairs_bytes = []
             for index in participant_indexes:
@@ -312,7 +312,7 @@ class FROST:
         def sec_serialize(self):
             prefix = b'\x02' if self.y % 2 == 0 else b'\x03'
 
-            return prefix + int.to_bytes(self.x, 32, 'big')
+            return prefix + self.x.to_bytes(32, 'big')
 
         # point at infinity
         def is_zero(self):
@@ -328,7 +328,7 @@ class FROST:
             P = FROST.secp256k1.P
             if self.is_zero():
                 return self
-            
+
             return self.__class__(self.x, P - self.y)
 
         def dbl(self):
