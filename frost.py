@@ -197,7 +197,7 @@ class FROST:
             aggregate_share = self.aggregate_share
 
             # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
-            return first_nonce + (second_nonce * binding_value) + lagrange_coefficient * aggregate_share * challenge_hash
+            return (first_nonce + (second_nonce * binding_value) + lagrange_coefficient * aggregate_share * challenge_hash) % FROST.secp256k1.Q
 
     class Aggregator:
         """Class representing the signature aggregator."""
