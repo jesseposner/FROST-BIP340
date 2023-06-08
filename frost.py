@@ -189,12 +189,19 @@ class FROST:
             first_nonce = nonce_pair[0]
             # e_i
             second_nonce = nonce_pair[1]
+            # Negate d_i and e_i if R is odd
+            if group_commitment.y % 2 != 0:
+                first_nonce = FROST.secp256k1.Q - first_nonce
+                second_nonce = FROST.secp256k1.Q - second_nonce
             # p_i = H_1(i, m, B), i ∈ S
             binding_value = FROST.Aggregator.binding_value(self.index, message, nonce_commitment_pairs, participant_indexes)
             # λ_i
             lagrange_coefficient = self.lagrange_coefficient(participant_indexes)
             # s_i
             aggregate_share = self.aggregate_share
+            # Negate s_i if Y is odd
+            if self.public_key.y % 2 != 0:
+                aggregate_share = FROST.secp256k1.Q - aggregate_share
 
             # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
             return (first_nonce + (second_nonce * binding_value) + lagrange_coefficient * aggregate_share * challenge_hash) % FROST.secp256k1.Q
@@ -527,6 +534,13 @@ class Tests(unittest.TestCase):
         G = FROST.secp256k1.G()
         # c = H_2(R, Y, m)
         challenge_hash = FROST.Aggregator.challenge_hash(nonce_commitment, pk, msg)
+        # Negate R if R is odd
+        if nonce_commitment.y % 2 != 0:
+            nonce_commitment = -nonce_commitment
+        # Negate Y if Y is odd
+        if pk.y % 2 != 0:
+            pk = -pk
+
         # R ≟ g^z * Y^-c
         self.assertTrue(nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash) * pk)
 
