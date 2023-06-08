@@ -528,7 +528,7 @@ class Tests(unittest.TestCase):
         s2 = p2.sign(message, nonce_commitment_pairs, participant_indexes)
 
         # σ = (R, z)
-        nonce_commitment, s = agg.signature([s1, s2])
+        nonce_commitment, z = agg.signature([s1, s2])
 
         # verify
         G = FROST.secp256k1.G()
@@ -542,7 +542,7 @@ class Tests(unittest.TestCase):
             pk = -pk
 
         # R ≟ g^z * Y^-c
-        self.assertTrue(nonce_commitment == (s * G) + (FROST.secp256k1.Q - challenge_hash) * pk)
+        self.assertTrue(nonce_commitment == (z * G) + (FROST.secp256k1.Q - challenge_hash) * pk)
 
 
 if __name__ == '__main__':
