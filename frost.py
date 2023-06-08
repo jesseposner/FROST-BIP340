@@ -253,13 +253,16 @@ class FROST:
         @classmethod
         def challenge_hash(self, nonce_commitment, public_key, message):
             # c = H_2(R, Y, m)
+            tag_hash = sha256(b'BIP0340/challenge').digest()
             challenge_hash = sha256()
-            challenge_hash.update(nonce_commitment.sec_serialize())
-            challenge_hash.update(public_key.sec_serialize())
+            challenge_hash.update(tag_hash)
+            challenge_hash.update(tag_hash)
+            challenge_hash.update(nonce_commitment.xonly_serialize())
+            challenge_hash.update(public_key.xonly_serialize())
             challenge_hash.update(message)
             challenge_hash_bytes = challenge_hash.digest()
 
-            return int.from_bytes(challenge_hash_bytes, 'big')
+            return int.from_bytes(challenge_hash_bytes, 'big') % FROST.secp256k1.Q
 
         def signing_inputs(self):
             # B = ⟨(i, D_i, E_i)⟩_i∈S
