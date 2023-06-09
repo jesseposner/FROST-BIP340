@@ -291,12 +291,12 @@ class FROST:
             challenge_hash = self.challenge_hash(group_commitment, self.public_key, self.message)
             # TODO: verify each signature share
             # σ = (R, z)
-            R = group_commitment.xonly_serialize()
+            nonce_commitment = group_commitment.xonly_serialize()
             z = (
                 sum(signature_shares) % FROST.secp256k1.Q
             ).to_bytes(32, 'big')
 
-            return (R + z).hex()
+            return (nonce_commitment + z).hex()
 
     class Point:
         """Class representing an elliptic curve point."""
