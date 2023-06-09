@@ -291,7 +291,12 @@ class FROST:
             challenge_hash = self.challenge_hash(group_commitment, self.public_key, self.message)
             # TODO: verify each signature share
             # σ = (R, z)
-            return group_commitment, sum(signature_shares)
+            R = group_commitment.xonly_serialize()
+            z = (
+                sum(signature_shares) % FROST.secp256k1.Q
+            ).to_bytes(32, 'big')
+
+            return (R + z).hex()
 
     class Point:
         """Class representing an elliptic curve point."""
@@ -309,6 +314,7 @@ class FROST:
             x = int.from_bytes(x_bytes, 'big')
             y_squared = (pow(x, 3, P) + 7) % P
             y = pow(y_squared, (P + 1) // 4, P)
+
             if y % 2 == 0:
                 even_y = y
                 odd_y = (P - y) % P
@@ -323,6 +329,19 @@ class FROST:
             prefix = b'\x02' if self.y % 2 == 0 else b'\x03'
 
             return prefix + self.x.to_bytes(32, 'big')
+
+        @classmethod
+        def xonly_deserialize(cls, hex_public_key):
+            P = FROST.secp256k1.P
+            hex_bytes = bytes.fromhex(hex_public_key)
+            x = int.from_bytes(hex_bytes, 'big')
+            y_squared = (pow(x, 3, P) + 7) % P
+            y = pow(y_squared, (P + 1) // 4, P)
+
+            if y % 2 != 0:
+                y = (P - y) % P
+
+            return cls(x, y)
 
         def xonly_serialize(self):
             return self.x.to_bytes(32, 'big')
@@ -528,16 +547,16 @@ class Tests(unittest.TestCase):
         s2 = p2.sign(message, nonce_commitment_pairs, participant_indexes)
 
         # σ = (R, z)
-        nonce_commitment, z = agg.signature([s1, s2])
+        sig = agg.signature([s1, s2])
+        sig_bytes = bytes.fromhex(sig)
+        nonce_commitment = FROST.Point.xonly_deserialize(sig_bytes[0:32].hex())
+        z = int.from_bytes(sig_bytes[32:64], 'big')
 
         # verify
         G = FROST.secp256k1.G()
         # c = H_2(R, Y, m)
         challenge_hash = FROST.Aggregator.challenge_hash(nonce_commitment, pk, msg)
-        # Negate R if R is odd
-        if nonce_commitment.y % 2 != 0:
-            nonce_commitment = -nonce_commitment
-        # Negate Y if Y is odd
+        # Negate Y if Y.y is odd
         if pk.y % 2 != 0:
             pk = -pk
 
