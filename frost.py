@@ -31,7 +31,7 @@ class FROST:
 
         CONTEXT = b'FROST-BIP340'
 
-        def __init__(self, index, threshold, participants):
+        def __init__(self, index, threshold, participants, tweak=0):
             self.index = index
             self.threshold = threshold
             self.participants = participants
@@ -45,6 +45,10 @@ class FROST:
             self.nonce_commitment_pairs = []
             # Y
             self.public_key = None
+            # tweak
+            if tweak:
+                assert tweak < FROST.secp256k1.Q
+            self.tweak = tweak
 
         def init_keygen(self):
             Q = FROST.secp256k1.Q
@@ -159,6 +163,13 @@ class FROST:
             public_key = self.coefficient_commitments[0]
             for secret_commitment in secret_commitments:
                 public_key = public_key + secret_commitment
+
+            if self.tweak:
+                G = FROST.secp256k1.G()
+                Q = FROST.secp256k1.Q
+                g = 1 if public_key.y % 2 == 0 else Q - 1
+                public_key = g * public_key + self.tweak * G
+
             self.public_key = public_key
             return public_key
 
@@ -209,7 +220,7 @@ class FROST:
     class Aggregator:
         """Class representing the signature aggregator."""
 
-        def __init__(self, public_key, message, nonce_commitment_pair_list, participant_indexes):
+        def __init__(self, public_key, message, nonce_commitment_pair_list, participant_indexes, tweak=0):
             # Y
             self.public_key = public_key
             # m
@@ -220,6 +231,8 @@ class FROST:
             self.participant_indexes = participant_indexes
             # B
             self.nonce_commitment_pairs = []
+            # tweak!
+            self.tweak = tweak
 
         @classmethod
         def group_commitment(self, message, nonce_commitment_pairs, participant_indexes):
@@ -292,8 +305,9 @@ class FROST:
             # TODO: verify each signature share
             # σ = (R, z)
             nonce_commitment = group_commitment.xonly_serialize()
+            g = 1 if self.public_key.y % 2 == 0 else FROST.secp256k1.Q - 1
             z = (
-                sum(signature_shares) % FROST.secp256k1.Q
+                sum(signature_shares) + (challenge_hash * g * self.tweak) % FROST.secp256k1.Q
             ).to_bytes(32, 'big')
 
             return (nonce_commitment + z).hex()
