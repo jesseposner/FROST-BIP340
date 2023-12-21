@@ -8,6 +8,8 @@ This work is made possible with the support of Brink.
 * [Introductory slides](FROST.pdf)
 * [FROST flow diagram](dot/api/frost.pdf)
 
+## Requirements
+python 3.10.2+
 
 ### Running the tests
 see: [tests/README.md](tests/README.md)
