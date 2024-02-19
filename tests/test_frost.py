@@ -45,24 +45,24 @@ class Tests(unittest.TestCase):
 
         # Round 2.2
         self.assertTrue(
-            p1.verify_share(p2.shares[p1.index-1], p2.coefficient_commitments)
+            p1.verify_share(p2.shares[p1.index-1], p2.coefficient_commitments, 2)
         )
         self.assertTrue(
-            p1.verify_share(p3.shares[p1.index-1], p3.coefficient_commitments)
-        )
-
-        self.assertTrue(
-            p2.verify_share(p1.shares[p2.index-1], p1.coefficient_commitments)
-        )
-        self.assertTrue(
-            p2.verify_share(p3.shares[p2.index-1], p3.coefficient_commitments)
+            p1.verify_share(p3.shares[p1.index-1], p3.coefficient_commitments, 2)
         )
 
         self.assertTrue(
-            p3.verify_share(p1.shares[p3.index-1], p1.coefficient_commitments)
+            p2.verify_share(p1.shares[p2.index-1], p1.coefficient_commitments, 2)
         )
         self.assertTrue(
-            p3.verify_share(p2.shares[p3.index-1], p2.coefficient_commitments)
+            p2.verify_share(p3.shares[p2.index-1], p3.coefficient_commitments, 2)
+        )
+
+        self.assertTrue(
+            p3.verify_share(p1.shares[p3.index-1], p1.coefficient_commitments, 2)
+        )
+        self.assertTrue(
+            p3.verify_share(p2.shares[p3.index-1], p2.coefficient_commitments, 2)
         )
 
         # Round 2.3

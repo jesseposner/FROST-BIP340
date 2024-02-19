@@ -131,7 +131,9 @@ class FROST:
                 denominator = denominator * (index - self.index)
             return (numerator * pow(denominator, Q - 2, Q)) % Q
 
-        def verify_share(self, y, coefficient_commitments):
+        def verify_share(self, y, coefficient_commitments, threshold):
+            assert len(coefficient_commitments) == threshold
+
             Q = FROST.secp256k1.Q
             G = FROST.secp256k1.G()
             # ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
