@@ -12,7 +12,7 @@ creation, and verifying the integrity of the process.
 
 from hashlib import sha256
 import secrets
-from typing import Tuple, List
+from typing import Tuple, Optional
 from .constants import Q
 from .point import Point, G
 from .aggregator import Aggregator
@@ -42,14 +42,14 @@ class Participant:
         self.index = index
         self.threshold = threshold
         self.participants = participants
-        self.coefficients = None
-        self.coefficient_commitments = None
-        self.proof_of_knowledge = None
-        self.shares = None
-        self.aggregate_share = None
-        self.nonce_pairs = []
-        self.nonce_commitment_pairs = []
-        self.public_key = None
+        self.coefficients: Optional[Tuple[int, ...]] = None
+        self.coefficient_commitments: Optional[Tuple[Point, ...]] = None
+        self.proof_of_knowledge: Optional[Tuple[Point, int]] = None
+        self.shares: Optional[Tuple[int, ...]] = None
+        self.aggregate_share: Optional[int] = None
+        self.nonce_pair: Optional[Tuple[int, int]] = None
+        self.nonce_commitment_pair: Optional[Tuple[Point, Point]] = None
+        self.public_key: Optional[Point] = None
 
     def init_keygen(self) -> None:
         """
@@ -76,6 +76,9 @@ class Participant:
         Compute the participant's proof of knowledge for the first coefficient,
         intended for internal use.
         """
+        if not self.coefficients:
+            raise ValueError("Polynomial coefficients must be initialized.")
+
         # k ⭠ ℤ_q
         nonce = secrets.randbits(256) % Q
         # R_i = g^k
@@ -108,6 +111,9 @@ class Participant:
         Compute commitments to each coefficient for verification purposes,
         intended for internal use.
         """
+        if not self.coefficients:
+            raise ValueError("Polynomial coefficients must be initialized.")
+
         # C_i = ⟨𝜙_i_0, ..., 𝜙_i_(t - 1)⟩
         # 𝜙_i_j = g^a_i_j, 0 ≤ j ≤ t - 1
         self.coefficient_commitments = tuple(
@@ -195,18 +201,20 @@ class Participant:
         """
         if not isinstance(x, int):
             raise ValueError("The value of x must be an integer.")
+        if not self.coefficients:
+            raise ValueError("Polynomial coefficients must be initialized.")
 
         y = 0
         for coefficient in reversed(self.coefficients):
             y = (y * x + coefficient) % Q
         return y
 
-    def _lagrange_coefficient(self, participant_indexes: List[int]) -> int:
+    def _lagrange_coefficient(self, participant_indexes: Tuple[int, ...]) -> int:
         """
         Calculate the Lagrange coefficient for this participant relative to other participants.
 
         Parameters:
-        participant_indexes (List[int]): A list of indices of other
+        participant_indexes (Tuple[int, ...]): A tuple of indices of other
         participants involved in the calculation.
 
         Returns:
@@ -230,14 +238,14 @@ class Participant:
         return (numerator * pow(denominator, Q - 2, Q)) % Q
 
     def verify_share(
-        self, y: Point, coefficient_commitments: List[Point], threshold: int
+        self, y: int, coefficient_commitments: Tuple[Point, ...], threshold: int
     ) -> bool:
         """
         Verify that a given share matches the expected value derived from coefficient commitments.
 
         Parameters:
         y (Point): The share to verify.
-        coefficient_commitments (List[Point]): The commitments of the coefficients.
+        coefficient_commitments (Tuple[Point, ...]): The commitments of the coefficients.
         threshold (int): The number of required commitments.
 
         Returns:
@@ -252,19 +260,19 @@ class Participant:
             )
 
         # ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
-        expected_y_commitment = Point(float("inf"), float("inf"))  # Point at infinity
+        expected_y_commitment = Point()  # Point at infinity
         for k, commitment in enumerate(coefficient_commitments):
             expected_y_commitment += (self.index**k % Q) * commitment
 
         # g^f_l(i) ≟ ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
         return y * G == expected_y_commitment
 
-    def aggregate_shares(self, other_shares: List[int]) -> None:
+    def aggregate_shares(self, other_shares: Tuple[int, ...]) -> None:
         """
         Aggregate the shares from all participants to compute the participant's aggregate share.
 
         Parameters:
-        other_shares (List[int]): A list of integer shares from other participants.
+        other_shares (Tuple[int, ...]): A tuple of integer shares from other participants.
 
         This method updates the participant's aggregate share based on the provided shares and
         the participant's own share.
@@ -299,13 +307,13 @@ class Participant:
         # Y_i = g^s_i
         return self.aggregate_share * G
 
-    def derive_public_key(self, other_secret_commitments: List[Point]) -> Point:
+    def derive_public_key(self, other_secret_commitments: Tuple[Point, ...]) -> Point:
         """
         Derive the public key by summing up the secret commitments.
 
         Parameters:
-        other_secret_commitments (List[Point]): A list of secret commitments
-        from other participants.
+        other_secret_commitments (Tuple[Point, ...]): A tuple of secret
+        commitments from other participants.
 
         Returns:
         Point: The derived public key as a point on the elliptic curve.
@@ -328,43 +336,33 @@ class Participant:
         self.public_key = public_key
         return public_key
 
-    def generate_nonces(self, amount: int) -> None:
+    def generate_nonce_pair(self) -> None:
         """
-        Generate a specified amount of nonce pairs and their elliptic curve
-        commitments for cryptographic operations.
-
-        Parameters:
-        amount (int): The number of nonce pairs to generate.
-
-        Raises:
-        ValueError: If the specified amount is not a positive integer.
+        Generate a nonce pairs and their elliptic curve commitments for
+        cryptographic operations.
         """
-        if not isinstance(amount, int) or amount <= 0:
-            raise ValueError("Amount must be a positive integer.")
+        # (d_i_j, e_i_j) ⭠ $ ℤ*_q x ℤ*_q
+        nonce_pair = (secrets.randbits(256) % Q, secrets.randbits(256) % Q)
+        # (D_i_j, E_i_j) = (g^d_i_j, g^e_i_j)
+        nonce_commitment_pair = (nonce_pair[0] * G, nonce_pair[1] * G)
 
-        # Preprocess(π) ⭢  (i, ⟨(D_i_j, E_i_j)⟩), 1 ≤ j ≤ π
-        for _ in range(amount):
-            # (d_i_j, e_i_j) ⭠ $ ℤ*_q x ℤ*_q
-            nonce_pair = (secrets.randbits(256) % Q, secrets.randbits(256) % Q)
-            # (D_i_j, E_i_j) = (g^d_i_j, g^e_i_j)
-            nonce_commitment_pair = (nonce_pair[0] * G, nonce_pair[1] * G)
-
-            self.nonce_pairs.append(nonce_pair)
-            self.nonce_commitment_pairs.append(nonce_commitment_pair)
+        self.nonce_pair = nonce_pair
+        self.nonce_commitment_pair = nonce_commitment_pair
 
     def sign(
         self,
         message: bytes,
-        nonce_commitment_pairs: List[Tuple[Point, Point]],
-        participant_indexes: List[int],
+        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
+        participant_indexes: Tuple[int, ...],
     ) -> int:
         """
         Generate a signature contribution for this participant.
 
         Parameters:
         message (bytes): The message being signed.
-        nonce_commitment_pairs (List[Tuple[Point, Point]]): List of tuples of nonce commitments.
-        participant_indexes (List[int]): List of participant indexes involved in the signing.
+        nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): Tuple of
+        tuples of nonce commitments.
+        participant_indexes (Tuple[int, ...]): Tuple of participant indexes involved in the signing.
 
         Returns:
         int: The signature share of this participant.
@@ -372,21 +370,29 @@ class Participant:
         Raises:
         ValueError: If required cryptographic elements are not properly initialized.
         """
-        if not self.nonce_pairs:
-            raise ValueError("Nonce pairs are empty. Cannot proceed with signing.")
+        if self.nonce_pair is None:
+            raise ValueError("Nonce pair has not been initialized.")
+        if self.public_key is None:
+            raise ValueError("Public key has not been initialized.")
+        if self.public_key.x is None or self.public_key.y is None:
+            raise ValueError("Public key is the point at infinity.")
+        if self.aggregate_share is None:
+            raise ValueError("Aggregate share has not been initialized.")
+
         # R
         group_commitment = Aggregator.group_commitment(
             message, nonce_commitment_pairs, participant_indexes
         )
+        if group_commitment.x is None or group_commitment.y is None:
+            raise ValueError("Group commitment is the point at infinity.")
 
         # c = H_2(R, Y, m)
         challenge_hash = Aggregator.challenge_hash(
             group_commitment, self.public_key, message
         )
 
-        nonce_pair = self.nonce_pairs.pop()
         # d_i, e_i
-        first_nonce, second_nonce = nonce_pair
+        first_nonce, second_nonce = self.nonce_pair
 
         # Negate d_i and e_i if R is odd
         if group_commitment.y % 2 != 0:

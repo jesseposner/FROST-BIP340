@@ -10,7 +10,7 @@ signature. It ensures that all components are correctly combined according to
 the FROST protocol.
 """
 
-from typing import List, Tuple
+from typing import Tuple
 from hashlib import sha256
 from .point import Point
 from .constants import Q
@@ -23,8 +23,8 @@ class Aggregator:
         self,
         public_key: Point,
         message: bytes,
-        nonce_commitment_pair_list: List[Point],
-        participant_indexes: Tuple[int],
+        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
+        participant_indexes: Tuple[int, ...],
     ):
         """
         Initialize the Aggregator for managing and processing cryptographic
@@ -33,8 +33,9 @@ class Aggregator:
         Parameters:
         public_key (Point): The public key used in the signature verification process.
         message (bytes): The message that is being signed.
-        nonce_commitment_pair_list (List[Point]): A list of nonce commitments from each participant.
-        participant_indexes (Tuple[int]): Indices of participants involved in the signature process.
+        nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): A tuple of
+        nonce commitments from each participant.
+        participant_indexes (Tuple[int, ...]): Indices of participants involved in the signature process.
 
         This setup prepares the Aggregator to handle the aggregation of nonce
         commitments and signatures.
@@ -43,28 +44,26 @@ class Aggregator:
         self.public_key = public_key
         # m
         self.message = message
-        # L
-        self.nonce_commitment_pair_list = nonce_commitment_pair_list
+        # B
+        self.nonce_commitment_pairs = nonce_commitment_pairs
         # S = α: t ≤ α ≤ n
         self.participant_indexes = participant_indexes
-        # B
-        self.nonce_commitment_pairs = None
 
     @classmethod
     def group_commitment(
         cls,
         message: bytes,
-        nonce_commitment_pairs: List[List[Point]],
-        participant_indexes: List[int],
+        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
+        participant_indexes: Tuple[int, ...],
     ) -> Point:
         """
         Calculate the group commitment by aggregating individual commitments from participants.
 
         Parameters:
         message (bytes): The message being signed.
-        nonce_commitment_pairs (List[List[Point]]): A list containing pairs of
-        nonce commitments for each participant. participant_indexes
-        (List[int]): Indices of participants involved in the signature,
+        nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): A tuple containing pairs of
+        nonce commitments for each participant.
+        participant_indexes (Tuple[int, ...]): Indices of participants involved in the signature,
         expected to start from 1.
 
         Returns:
@@ -74,7 +73,7 @@ class Aggregator:
         ValueError: If any participant index is out of the expected range.
         """
         # R
-        group_commitment = Point(x=float("inf"), y=float("inf"))  # Point at infinity
+        group_commitment = Point()  # Point at infinity
         for index in participant_indexes:
             if index < 1 or index > len(nonce_commitment_pairs):
                 raise ValueError(f"Participant index {index} is out of range.")
@@ -96,17 +95,19 @@ class Aggregator:
         cls,
         index: int,
         message: bytes,
-        nonce_commitment_pairs: List[List[Point]],
-        participant_indexes: List[int],
+        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
+        participant_indexes: Tuple[int, ...],
     ) -> int:
         """
         Compute a binding value used in cryptographic operations, uniquely
         identifying participant contributions.
 
         Parameters: index (int): The index of the participant. message (bytes):
-        The message being signed. nonce_commitment_pairs (List[List[Point]]): A
-        list of nonce commitments for each participant. participant_indexes
-        (List[int]): The indices of participants involved in the operation.
+        The message being signed.
+        nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): A list of nonce commitments
+        for each participant.
+        participant_indexes (Tuple[int, ...]): The indices of participants involved
+        in the operation.
 
         Returns: int: The resulting binding value as an integer.
 
@@ -167,39 +168,25 @@ class Aggregator:
 
         return int.from_bytes(challenge_hash_bytes, "big") % Q
 
-    def signing_inputs(self) -> Tuple[bytes, List[Point]]:
+    def signing_inputs(self) -> Tuple[bytes, Tuple[Tuple[Point, Point], ...]]:
         """
-        Prepare the signing inputs by organizing nonce commitments for each participant.
+        Returns the signing inputs to be used by the signers.
 
         Returns:
-        Tuple[bytes, List[Point]]: A tuple containing the message and the list of nonce commitments
-        organized by participant indexes.
-
-        Raises:
-        IndexError: If any participant's commitment list is empty.
+        Tuple[bytes, Tuple[Tuple[Point, Point], ...]]: A tuple containing the
+        message and the list of nonce commitments organized by participant
+        indexes.
         """
         # B = ⟨(i, D_i, E_i)⟩_i∈S
-        nonce_commitment_pairs = [None] * max(self.participant_indexes)
-        # P_i ∈ S
-        for index in self.participant_indexes:
-            # L_i
-            participant_pairs = self.nonce_commitment_pair_list[index - 1]
-            if not participant_pairs:
-                raise IndexError(
-                    f"No available commitments left for participant index {index}."
-                )
-            nonce_commitment_pairs[index - 1] = participant_pairs.pop()
-
-        self.nonce_commitment_pairs = nonce_commitment_pairs
         # (m, B)
-        return (self.message, nonce_commitment_pairs)
+        return (self.message, self.nonce_commitment_pairs)
 
-    def signature(self, signature_shares: List[int]) -> str:
+    def signature(self, signature_shares: Tuple[int, ...]) -> str:
         """
         Compute the final signature from the aggregated signature shares.
 
         Parameters:
-        signature_shares (List[int]): The list of signature shares from all participating members.
+        signature_shares (Tuple[int, ...]): Tuple of signature shares from all participating members.
 
         Returns:
         str: The final signature in hexadecimal format.

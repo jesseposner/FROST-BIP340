@@ -9,25 +9,26 @@ such as point doubling, scalar multiplication, and checks for the point at infin
 """
 
 from __future__ import annotations
+from typing import Optional
 from .constants import P, Q, G_x, G_y
 
 
 class Point:
     """Class representing an elliptic curve point."""
 
-    def __init__(self, x: float = float("inf"), y: float = float("inf")):
+    def __init__(self, x: Optional[int] = None, y: Optional[int] = None):
         """
         Initialize a point on an elliptic curve.
 
         Parameters:
-        x (float, optional): The x-coordinate of the point.
-        Defaults to float('inf'), representing the point at infinity.
-
-        y (float, optional): The y-coordinate of the point.
-        Defaults to float('inf'), also representing the point at infinity.
+        x (Optional[int], optional): The x-coordinate of the point.
+            Defaults to None, representing the point at infinity.
+        y (Optional[int], optional): The y-coordinate of the point.
+            Defaults to None, also representing the point at infinity.
 
         The point at infinity serves as the identity element in elliptic curve addition.
         """
+
         self.x = x
         self.y = y
 
@@ -83,7 +84,7 @@ class Point:
         Raises:
         ValueError: If the point is at infinity or x, y coordinates are not finite.
         """
-        if self.x == float("inf") or self.y == float("inf"):
+        if self.x is None or self.y is None:
             raise ValueError("Cannot serialize the point at infinity.")
 
         prefix = b"\x02" if self.y % 2 == 0 else b"\x03"
@@ -134,7 +135,7 @@ class Point:
         Raises:
         ValueError: If the x-coordinate is not finite.
         """
-        if self.x == float("inf"):
+        if self.x is None:
             raise ValueError("The x-coordinate is not finite.")
 
         return self.x.to_bytes(32, "big")
@@ -146,7 +147,7 @@ class Point:
         Returns:
         bool: True if the point is at infinity, False otherwise.
         """
-        return self.x == float("inf") or self.y == float("inf")
+        return self.x is None or self.y is None
 
     def __eq__(self, other: object) -> bool:
         """
@@ -177,7 +178,7 @@ class Point:
         The negation of a point involves reflecting it over the x-axis, which means the x-coordinate
         remains the same and the y-coordinate is subtracted from the modulus P.
         """
-        if self.is_zero():
+        if self.x is None or self.y is None:
             return self
 
         return self.__class__(self.x, P - self.y)
@@ -190,9 +191,9 @@ class Point:
         Returns:
         Point: A new Point that is the result of doubling the current point.
         """
-        if self.is_zero() or self.y == 0:
+        if self.x is None or self.y is None or self.y == 0:
             # Return the point at infinity
-            return self.__class__(float("inf"), float("inf"))
+            return self.__class__()
 
         x = self.x
         y = self.y
@@ -220,12 +221,12 @@ class Point:
 
         if self == other:
             return self._dbl()
-        if self.is_zero():
+        if self.x is None or self.y is None:
             return other
-        if other.is_zero():
+        if other.x is None or other.y is None:
             return self
         if self.x == other.x and self.y != other.y:
-            return self.__class__(float("inf"), float("inf"))  # Point at infinity
+            return self.__class__()  # Point at infinity
         s = ((other.y - self.y) * pow(other.x - self.x, P - 2, P)) % P
         sum_x = (s * s - self.x - other.x) % P
         sum_y = (s * (self.x - sum_x) - self.y) % P
@@ -253,7 +254,7 @@ class Point:
         scalar = scalar % Q
 
         p = self
-        r = self.__class__(float("inf"), float("inf"))
+        r = self.__class__()
         i = 1
 
         while i <= scalar:
@@ -282,7 +283,7 @@ class Point:
         Return a machine-readable string representation of the point.
         """
         if self.is_zero():
-            return f"{self.__class__.__name__}(x=float('inf'), y=float('inf'))"
+            return f"{self.__class__.__name__}(x=None, y=None)"
         return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
 
 
