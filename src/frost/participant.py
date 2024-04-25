@@ -64,17 +64,40 @@ class Participant:
         # 3. Compute coefficient commitments.
         self._compute_coefficient_commitments()
 
+    def init_refresh(self) -> None:
+        """
+        Initialize proactive secret sharing refresh for a participant by generating a new polynomial
+        with random coefficients and computing new coefficient commitments.
+        """
+        # 1. Generate polynomial with random coefficients, and with degree
+        # equal to the threshold minus one, with the first coefficient set to 0.
+        self._generate_refresh_polynomial()
+        # 2. Compute coefficient commitments.
+        self._compute_coefficient_commitments()
+
     def _generate_polynomial(self) -> None:
-        """Generate random polynomial coefficients, intended for internal use."""
+        """Generate random polynomial coefficients."""
         # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
         self.coefficients = tuple(
             secrets.randbits(256) % Q for _ in range(self.threshold)
         )
 
+    def _generate_refresh_polynomial(self) -> None:
+        """
+        Generate a polynomial with random coefficients for proactive secret
+        sharing refresh, where the first coefficient is set to 0 to ensure the
+        refresh does not change the shared secret.
+        """
+        # Generate the rest of the coefficients randomly, except the first one which is set to 0.
+        # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
+        # a_i_0 is set to 0 explicitly.
+        self.coefficients = (0,) + tuple(
+            secrets.randbits(256) % Q for _ in range(self.threshold - 1)
+        )
+
     def _compute_proof_of_knowledge(self) -> None:
         """
         Compute the participant's proof of knowledge for the first coefficient,
-        intended for internal use.
         """
         if not self.coefficients:
             raise ValueError("Polynomial coefficients must be initialized.")
@@ -109,7 +132,6 @@ class Participant:
     def _compute_coefficient_commitments(self) -> None:
         """
         Compute commitments to each coefficient for verification purposes,
-        intended for internal use.
         """
         if not self.coefficients:
             raise ValueError("Polynomial coefficients must be initialized.")
@@ -289,7 +311,10 @@ class Participant:
                 raise TypeError("All shares must be integers.")
             aggregate_share = (aggregate_share + other_share) % Q
 
-        self.aggregate_share = aggregate_share
+        if self.aggregate_share is not None:
+            self.aggregate_share = (self.aggregate_share + aggregate_share) % Q
+        else:
+            self.aggregate_share = aggregate_share
 
     def public_verification_share(self) -> Point:
         """

@@ -176,3 +176,74 @@ class Tests(unittest.TestCase):
 
         # R ≟ g^z * Y^-c
         self.assertTrue(nonce_commitment == (z * G) + (Q - challenge_hash) * pk)
+
+    def test_refresh(self):
+        p1 = self.p1
+        p2 = self.p2
+        p3 = self.p3
+
+        p1.init_refresh()
+        p2.init_refresh()
+        p3.init_refresh()
+
+        p1.generate_shares()
+        p2.generate_shares()
+        p3.generate_shares()
+
+        p1.aggregate_shares((p2.shares[p1.index - 1], p3.shares[p1.index - 1]))
+        p2.aggregate_shares((p1.shares[p2.index - 1], p3.shares[p2.index - 1]))
+        p3.aggregate_shares((p1.shares[p3.index - 1], p2.shares[p3.index - 1]))
+
+        self.assertTrue(
+            p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2)
+        )
+        self.assertTrue(
+            p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2)
+        )
+
+        self.assertTrue(
+            p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2)
+        )
+        self.assertTrue(
+            p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2)
+        )
+
+        self.assertTrue(
+            p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2)
+        )
+        self.assertTrue(
+            p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
+        )
+
+        pk1 = p1.public_key
+        pk2 = p2.public_key
+        pk3 = p3.public_key
+
+        self.assertEqual(pk1, pk2)
+        self.assertEqual(pk2, pk3)
+
+        # Reconstruct secret
+        l1 = p1._lagrange_coefficient((2,))
+        l2 = p2._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1._lagrange_coefficient((3,))
+        l3 = p3._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p3.aggregate_share * l3)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l2 = p2._lagrange_coefficient((3,))
+        l3 = p3._lagrange_coefficient((2,))
+        secret = ((p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1._lagrange_coefficient((2, 3))
+        l2 = p2._lagrange_coefficient((1, 3))
+        l3 = p3._lagrange_coefficient((1, 2))
+        secret = (
+            (p1.aggregate_share * l1)
+            + (p2.aggregate_share * l2)
+            + (p3.aggregate_share * l3)
+        ) % Q
+        self.assertEqual(secret * G, pk1)
