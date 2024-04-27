@@ -400,7 +400,8 @@ class Participant:
         Repair or reconstruct the participant's aggregate share from provided repair shares.
 
         Parameters:
-        aggregate_repair_shares (Tuple[int, ...]): A tuple of integer shares used for the reconstruction.
+        aggregate_repair_shares (Tuple[int, ...]): A tuple of integer shares
+        used for the reconstruction.
 
         Raises:
         ValueError: If the participant's share has not been lost or the number
