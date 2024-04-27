@@ -40,6 +40,13 @@ class Tests(unittest.TestCase):
             (p1.coefficient_commitments[0], p2.coefficient_commitments[0])
         )
 
+        pk1 = p1.public_key
+        pk2 = p2.public_key
+        pk3 = p3.public_key
+
+        self.assertEqual(pk1, pk2)
+        self.assertEqual(pk2, pk3)
+
     def test_keygen(self):
         p1 = self.p1
         p2 = self.p2
@@ -101,15 +108,9 @@ class Tests(unittest.TestCase):
             p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
         )
 
-        # Round 2.4
-        pk1 = p1.public_key
-        pk2 = p2.public_key
-        pk3 = p3.public_key
-
-        self.assertEqual(pk1, pk2)
-        self.assertEqual(pk2, pk3)
-
         # Reconstruct secret
+        pk1 = p1.public_key
+
         l1 = p1._lagrange_coefficient((2,))
         l2 = p2._lagrange_coefficient((1,))
         secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
@@ -215,14 +216,9 @@ class Tests(unittest.TestCase):
             p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
         )
 
-        pk1 = p1.public_key
-        pk2 = p2.public_key
-        pk3 = p3.public_key
-
-        self.assertEqual(pk1, pk2)
-        self.assertEqual(pk2, pk3)
-
         # Reconstruct secret
+        pk1 = p1.public_key
+
         l1 = p1._lagrange_coefficient((2,))
         l2 = p2._lagrange_coefficient((1,))
         secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
@@ -288,3 +284,49 @@ class Tests(unittest.TestCase):
 
         p3.repair_share((p1.aggregate_repair_share, p2.aggregate_repair_share))
         self.assertEqual(lost_share, p3.aggregate_share)
+
+    def test_enrollment(self):
+        p1 = self.p1
+        p2 = self.p2
+        p3 = self.p3
+
+        p4 = Participant(index=4, threshold=2, participants=4)
+        p1.participants = 4
+        p2.participants = 4
+        p3.participants = 4
+
+        p1.generate_repair_shares((2,), 4)
+        p2.generate_repair_shares((1,), 4)
+
+        p1.aggregate_repair_shares((p2.repair_shares[1],))
+        p2.aggregate_repair_shares((p1.repair_shares[1],))
+
+        p4.repair_share((p1.aggregate_repair_share, p2.aggregate_repair_share))
+
+        # Reconstruct secret
+        pk1 = p1.public_key
+
+        l1 = p1._lagrange_coefficient((2,))
+        l2 = p2._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1._lagrange_coefficient((4,))
+        l4 = p4._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p4.aggregate_share * l4)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l2 = p2._lagrange_coefficient((4,))
+        l4 = p4._lagrange_coefficient((2,))
+        secret = ((p2.aggregate_share * l2) + (p4.aggregate_share * l4)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1._lagrange_coefficient((2, 4))
+        l2 = p2._lagrange_coefficient((1, 4))
+        l4 = p4._lagrange_coefficient((1, 2))
+        secret = (
+            (p1.aggregate_share * l1)
+            + (p2.aggregate_share * l2)
+            + (p4.aggregate_share * l4)
+        ) % Q
+        self.assertEqual(secret * G, pk1)
