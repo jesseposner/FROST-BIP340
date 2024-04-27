@@ -50,6 +50,8 @@ class Participant:
         self.nonce_pair: Optional[Tuple[int, int]] = None
         self.nonce_commitment_pair: Optional[Tuple[Point, Point]] = None
         self.public_key: Optional[Point] = None
+        self.repair_shares: Optional[Tuple[int, ...]] = None
+        self.aggregate_repair_share: Optional[int] = None
 
     def init_keygen(self) -> None:
         """
@@ -208,6 +210,32 @@ class Participant:
             self._evaluate_polynomial(x) for x in range(1, self.participants + 1)
         )
 
+    def generate_repair_shares(
+        self, repair_participants: Tuple[int, ...], index: int
+    ) -> None:
+        """
+        Generate repair shares to assist a participant in recovering a lost share.
+
+        Parameters:
+        repair_participants (Tuple[int, ...]): Indices of participants involved in the repair.
+        index (int): The index of the participant with the lost share.
+
+        Raises:
+        ValueError: If the aggregate share has not been initialized.
+        """
+        if self.aggregate_share is None:
+            raise ValueError("Aggregate share has not been initialized.")
+
+        lagrange_coefficient = self._lagrange_coefficient(repair_participants, index)
+        random_shares = tuple(
+            secrets.randbits(256) % Q for _ in range(self.threshold - 1)
+        )
+        final_share = (
+            (lagrange_coefficient * self.aggregate_share) - sum(random_shares)
+        ) % Q
+
+        self.repair_shares = random_shares + (final_share,)
+
     def _evaluate_polynomial(self, x: int) -> int:
         """
         Evaluate the polynomial at a given point x using Horner's method.
@@ -231,13 +259,16 @@ class Participant:
             y = (y * x + coefficient) % Q
         return y
 
-    def _lagrange_coefficient(self, participant_indexes: Tuple[int, ...]) -> int:
+    def _lagrange_coefficient(
+        self, participant_indexes: Tuple[int, ...], x: int = 0
+    ) -> int:
         """
         Calculate the Lagrange coefficient for this participant relative to other participants.
 
         Parameters:
         participant_indexes (Tuple[int, ...]): A tuple of indices of other
         participants involved in the calculation.
+        x (int): The point at which the polynomial is evaluated.
 
         Returns:
         int: The Lagrange coefficient used in polynomial reconstruction or signature generation.
@@ -249,14 +280,14 @@ class Participant:
         if len(participant_indexes) != len(set(participant_indexes)):
             raise ValueError("Participant indexes must be unique.")
 
-        # λ_i = ∏ p_j/(p_j - p_i), 1 ≤ j ≤ α, j ≠ i
+        # λ_i(x) = ∏ (x - p_j)/(p_i - p_j), 1 ≤ j ≤ α, j ≠ i
         numerator = 1
         denominator = 1
         for index in participant_indexes:
             if index == self.index:
                 continue
-            numerator = numerator * index
-            denominator = denominator * (index - self.index)
+            numerator = numerator * (x - index)
+            denominator = denominator * (self.index - index)
         return (numerator * pow(denominator, Q - 2, Q)) % Q
 
     def verify_share(
@@ -315,6 +346,69 @@ class Participant:
             self.aggregate_share = (self.aggregate_share + aggregate_share) % Q
         else:
             self.aggregate_share = aggregate_share
+
+    def aggregate_repair_shares(self, other_shares: Tuple[int, ...]) -> None:
+        """
+        Aggregate the repair shares from participants to compute the
+        participant's aggregate repair share.
+
+        Parameters:
+        other_shares (Tuple[int, ...]): A tuple of integer repair shares from other participants.
+
+        Raises:
+        ValueError: If the participant's shares have not been initialized or
+        the number of other repair shares does not match the threshold minus
+        one.
+        TypeError: If any of the provided shares are not integers.
+        """
+        if not self.repair_shares:
+            raise ValueError("Participant's repair shares have not been initialized.")
+        if len(other_shares) != self.threshold - 1:
+            raise ValueError(
+                f"""
+                Expected exactly {self.threshold - 1} other shares, received
+                {len(other_shares)}.
+                """
+            )
+
+        # Always assign the first share to the participant who generated them.
+        aggregate_repair_share = self.repair_shares[0]
+        if not isinstance(aggregate_repair_share, int):
+            raise TypeError("All shares must be integers.")
+        for other_share in other_shares:
+            if not isinstance(other_share, int):
+                raise TypeError("All shares must be integers.")
+            aggregate_repair_share = (aggregate_repair_share + other_share) % Q
+
+        self.aggregate_repair_share = aggregate_repair_share
+
+    def repair_share(self, aggregate_repair_shares: Tuple[int, ...]) -> None:
+        """
+        Repair or reconstruct the participant's aggregate share from provided repair shares.
+
+        Parameters:
+        aggregate_repair_shares (Tuple[int, ...]): A tuple of integer shares used for the reconstruction.
+
+        Raises:
+        ValueError: If the participant's share has not been lost or the number
+        of repair shares does not match the threshold.
+        TypeError: If any of the provided shares are not integers.
+        """
+        if self.aggregate_share is not None:
+            raise ValueError("Participant's share has not been lost")
+        if len(aggregate_repair_shares) != self.threshold:
+            raise ValueError(
+                f"""
+                Expected exactly {self.threshold} aggregate repair shares,
+                received {len(aggregate_repair_shares)}.
+                """
+            )
+
+        for aggregate_repair_share in aggregate_repair_shares:
+            if not isinstance(aggregate_repair_share, int):
+                raise TypeError("All shares must be integers.")
+
+        self.aggregate_share = sum(aggregate_repair_shares) % Q
 
     def public_verification_share(self) -> Point:
         """

@@ -247,3 +247,44 @@ class Tests(unittest.TestCase):
             + (p3.aggregate_share * l3)
         ) % Q
         self.assertEqual(secret * G, pk1)
+
+    def test_repair(self):
+        p1 = self.p1
+        p2 = self.p2
+        p3 = self.p3
+
+        # repair share for p1
+        lost_share = p1.aggregate_share
+        p1.aggregate_share = None
+        p2.generate_repair_shares((3,), 1)
+        p3.generate_repair_shares((2,), 1)
+
+        p2.aggregate_repair_shares((p3.repair_shares[1],))
+        p3.aggregate_repair_shares((p2.repair_shares[1],))
+
+        p1.repair_share((p2.aggregate_repair_share, p3.aggregate_repair_share))
+        self.assertEqual(lost_share, p1.aggregate_share)
+
+        # repair share for p2
+        lost_share = p2.aggregate_share
+        p2.aggregate_share = None
+        p1.generate_repair_shares((3,), 2)
+        p3.generate_repair_shares((1,), 2)
+
+        p1.aggregate_repair_shares((p3.repair_shares[1],))
+        p3.aggregate_repair_shares((p1.repair_shares[1],))
+
+        p2.repair_share((p1.aggregate_repair_share, p3.aggregate_repair_share))
+        self.assertEqual(lost_share, p2.aggregate_share)
+
+        # repair share for p3
+        lost_share = p3.aggregate_share
+        p3.aggregate_share = None
+        p1.generate_repair_shares((2,), 3)
+        p2.generate_repair_shares((1,), 3)
+
+        p1.aggregate_repair_shares((p2.repair_shares[1],))
+        p2.aggregate_repair_shares((p1.repair_shares[1],))
+
+        p3.repair_share((p1.aggregate_repair_share, p2.aggregate_repair_share))
+        self.assertEqual(lost_share, p3.aggregate_share)
