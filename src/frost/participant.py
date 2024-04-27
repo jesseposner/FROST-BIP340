@@ -327,16 +327,28 @@ class Participant:
         Parameters:
         other_shares (Tuple[int, ...]): A tuple of integer shares from other participants.
 
-        This method updates the participant's aggregate share based on the provided shares and
-        the participant's own share.
+        Raises:
+        ValueError: If the participant's shares have not been initialized, the
+        participant's index is out of range, or the number of other shares does
+        not match the number of participants minus one.
+        TypeError: If any of the provided shares are not integers.
         """
         if not self.shares:
             raise ValueError("Participant's shares have not been initialized.")
         if not 0 <= self.index - 1 < len(self.shares):
             raise ValueError("Participant index is out of range.")
+        if len(other_shares) != self.participants - 1:
+            raise ValueError(
+                f"""
+                Expected exactly {self.participants - 1} other shares, received
+                {len(other_shares)}.
+                """
+            )
 
         # s_i = ∑ f_l(i), 1 ≤ l ≤ n
         aggregate_share = self.shares[self.index - 1]
+        if not isinstance(aggregate_share, int):
+            raise TypeError("All shares must be integers.")
         for other_share in other_shares:
             if not isinstance(other_share, int):
                 raise TypeError("All shares must be integers.")
