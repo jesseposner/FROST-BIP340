@@ -330,3 +330,56 @@ class Tests(unittest.TestCase):
             + (p4.aggregate_share * l4)
         ) % Q
         self.assertEqual(secret * G, pk1)
+
+    def test_disenrollment(self):
+        p1 = self.p1
+        p2 = self.p2
+        p3 = self.p3
+
+        p1.participants = 2
+        p2.participants = 2
+
+        p1.init_refresh()
+        p2.init_refresh()
+
+        p1.generate_shares()
+        p2.generate_shares()
+
+        p1.aggregate_shares((p2.shares[p1.index - 1],))
+        p2.aggregate_shares((p1.shares[p2.index - 1],))
+
+        self.assertTrue(
+            p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2)
+        )
+
+        self.assertTrue(
+            p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2)
+        )
+
+        # Reconstruct secret
+        pk1 = p1.public_key
+
+        l1 = p1._lagrange_coefficient((2,))
+        l2 = p2._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
+        self.assertEqual(secret * G, pk1)
+
+        l1 = p1._lagrange_coefficient((3,))
+        l3 = p3._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p3.aggregate_share * l3)) % Q
+        self.assertNotEqual(secret * G, pk1)
+
+        l2 = p2._lagrange_coefficient((3,))
+        l3 = p3._lagrange_coefficient((2,))
+        secret = ((p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
+        self.assertNotEqual(secret * G, pk1)
+
+        l1 = p1._lagrange_coefficient((2, 3))
+        l2 = p2._lagrange_coefficient((1, 3))
+        l3 = p3._lagrange_coefficient((1, 2))
+        secret = (
+            (p1.aggregate_share * l1)
+            + (p2.aggregate_share * l2)
+            + (p3.aggregate_share * l3)
+        ) % Q
+        self.assertNotEqual(secret * G, pk1)
