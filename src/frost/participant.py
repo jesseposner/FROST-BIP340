@@ -268,7 +268,8 @@ class Participant:
         Parameters:
         participant_indexes (Tuple[int, ...]): A tuple of indices of other
         participants involved in the calculation.
-        x (int): The point at which the polynomial is evaluated.
+        x (int, optional): The point at which the polynomial is evaluated.
+        Defaults to 0, representing the polynomial's constant term.
 
         Returns:
         int: The Lagrange coefficient used in polynomial reconstruction or signature generation.
