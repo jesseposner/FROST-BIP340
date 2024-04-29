@@ -77,6 +77,36 @@ class Participant:
         # 2. Compute coefficient commitments.
         self._compute_coefficient_commitments()
 
+    def init_threshold_increase(self, new_threshold: int) -> None:
+        """
+        Initializes the process to increase the threshold in a threshold cryptography scheme.
+
+        This method is responsible for generating a new polynomial with a degree corresponding
+        to the new threshold, computing proof of knowledge for security purposes, and computing
+        new coefficient commitments based on the new polynomial. It updates the internal state
+        to reflect the new threshold value.
+
+        Parameters:
+        new_threshold (int): The new threshold value which must be an integer greater than the
+        current threshold.
+
+        Raises:
+        ValueError: If the new_threshold is not an integer or if it is not greater than the
+        current threshold.
+        """
+        if not isinstance(new_threshold, int):
+            raise ValueError("New threshold must be an integer.")
+        if new_threshold <= self.threshold:
+            raise ValueError(
+                "New threshold must be greater than the current threshold."
+            )
+
+        self._generate_threshold_increase_polynomial(new_threshold)
+        self._compute_proof_of_knowledge()
+        self._compute_coefficient_commitments()
+
+        self.threshold = new_threshold
+
     def _generate_polynomial(self) -> None:
         """Generate random polynomial coefficients."""
         # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
@@ -95,6 +125,19 @@ class Participant:
         # a_i_0 is set to 0 explicitly.
         self.coefficients = (0,) + tuple(
             secrets.randbits(256) % Q for _ in range(self.threshold - 1)
+        )
+
+    def _generate_threshold_increase_polynomial(self, new_threshold: int) -> None:
+        """
+        Generate a polynomial with random coefficients for increasing the
+        threshold, with a degree equal to the threshold minus two.
+
+        Parameters:
+        new_threshold (int): The new threshold value which must be an integer greater than the
+        current threshold.
+        """
+        self.coefficients = tuple(
+            secrets.randbits(256) % Q for _ in range(new_threshold - 1)
         )
 
     def _compute_proof_of_knowledge(self) -> None:
@@ -446,6 +489,26 @@ class Participant:
         denominator = self.index - revealed_share_index
         quotient = (numerator * pow(denominator, Q - 2, Q)) % Q
         self.aggregate_share = (revealed_share - (revealed_share_index * quotient)) % Q
+
+    def increase_threshold(self, other_shares: Tuple[int, ...]) -> None:
+        """
+        Aggregate shares to increase the threshold.
+
+        Parameters:
+        other_shares (Tuple[int, ...]): A tuple of shares from other
+        participants that are used to increase the threshold.
+
+        Raises:
+        ValueError: If the participant's own initial shares or the aggregate share have not been
+        initialized.
+        """
+        if not self.shares:
+            raise ValueError("Participant's shares have not been initialized.")
+        if not self.aggregate_share:
+            raise ValueError("Participant's aggregate share has not been initialized.")
+
+        aggregate_share = (self.shares[self.index - 1] + sum(other_shares)) % Q
+        self.aggregate_share += (aggregate_share * self.index) % Q
 
     def public_verification_share(self) -> Point:
         """
