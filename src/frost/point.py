@@ -233,6 +233,24 @@ class Point:
 
         return self.__class__(sum_x, sum_y)
 
+    def __sub__(self, other: Point) -> Point:
+        """
+        Subtract one point from another on an elliptic curve.
+
+        Parameters:
+        other (Point): The point to subtract from this point.
+
+        Returns:
+        Point: The result of the point subtraction as a new Point object.
+
+        Raises:
+        ValueError: If other is not a Point.
+        """
+        if not isinstance(other, Point):
+            raise ValueError("The other object must be an instance of Point")
+
+        return self + -other
+
     def __rmul__(self, scalar: int) -> "Point":
         """
         Multiply this point by an integer scalar using the double-and-add
