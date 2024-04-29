@@ -263,13 +263,13 @@ class Point:
         Point: The result of the scalar multiplication.
 
         Raises:
-        ValueError: If the scalar is negative or not an integer.
+        ValueError: If the scalar is not an integer.
         """
-        if not isinstance(scalar, int) or scalar < 0:
-            raise ValueError("The scalar must be a non-negative integer")
-
         # Reduce scalar by the group order to ensure operation within the finite group
         scalar = scalar % Q
+
+        if not isinstance(scalar, int):
+            raise ValueError("The scalar must be an integer")
 
         p = self
         r = self.__class__()
