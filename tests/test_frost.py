@@ -495,6 +495,11 @@ class Tests(unittest.TestCase):
         ) % Q
         self.assertEqual(secret * G, pk1)
 
+        l1 = p1._lagrange_coefficient((2,))
+        l2 = p2._lagrange_coefficient((1,))
+        secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
+        self.assertNotEqual(secret * G, pk1)
+
         # Decrement threshold
         p1.decrement_threshold(revealed.aggregate_share, revealed_share_index)
         p2.decrement_threshold(revealed.aggregate_share, revealed_share_index)
