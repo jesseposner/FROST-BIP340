@@ -424,6 +424,29 @@ class Participant:
 
         self.aggregate_share = sum(aggregate_repair_shares) % Q
 
+    def decrement_threshold(
+        self, revealed_share: int, revealed_share_index: int
+    ) -> None:
+        """
+        Decrement the threshold by one and adjust the participant's share accordingly.
+
+        Parameters:
+        revealed_share (int): The share that was publicly revealed.
+        revealed_share_index (int): The index of the share that was publicly revealed.
+
+        Raises:
+        ValueError: If the participant's share has not been initialized.
+        """
+        if self.aggregate_share is None:
+            raise ValueError("Participant's share has not been initialized.")
+
+        self.threshold -= 1
+        # f'(i) = f(j) - j((f(i) - f(j))/(i - j))
+        numerator = self.aggregate_share - revealed_share
+        denominator = self.index - revealed_share_index
+        quotient = (numerator * pow(denominator, Q - 2, Q)) % Q
+        self.aggregate_share = (revealed_share - (revealed_share_index * quotient)) % Q
+
     def public_verification_share(self) -> Point:
         """
         Compute the public verification share from the participant's aggregate share.
