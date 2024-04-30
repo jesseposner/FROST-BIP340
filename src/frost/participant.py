@@ -34,6 +34,9 @@ class Participant:
         participants (int): The total number of participants in the scheme.
 
         Initializes storage for cryptographic coefficients, commitments, shares, and nonce pairs.
+
+        Raises:
+        ValueError: If any of the arguments are not integers.
         """
         if not all(isinstance(arg, int) for arg in (index, threshold, participants)):
             raise ValueError(
