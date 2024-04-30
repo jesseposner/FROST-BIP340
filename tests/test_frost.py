@@ -568,3 +568,34 @@ class Tests(unittest.TestCase):
             + (p3.aggregate_share * l3)
         ) % Q
         self.assertEqual(secret * G, pk1)
+
+    def test_derive_coefficient_commitments(self):
+        p1 = self.p1
+        p2 = self.p2
+        p3 = self.p3
+
+        coefficient_commitments = tuple(
+            sum(values, Point())
+            for values in zip(
+                p1.coefficient_commitments,
+                p2.coefficient_commitments,
+                p3.coefficient_commitments,
+            )
+        )
+        self.assertEqual(
+            p1.public_verification_share(),
+            coefficient_commitments[0] + (1 * coefficient_commitments[1]),
+        )
+        self.assertEqual(
+            p2.public_verification_share(),
+            coefficient_commitments[0] + (2 * coefficient_commitments[1]),
+        )
+        self.assertEqual(
+            p3.public_verification_share(),
+            coefficient_commitments[0] + (3 * coefficient_commitments[1]),
+        )
+
+        derived_coefficient_commitments = p1.derive_coefficient_commitments(
+            (p1.public_verification_share(), p2.public_verification_share()), (1, 2)
+        )
+        self.assertEqual(coefficient_commitments, derived_coefficient_commitments)

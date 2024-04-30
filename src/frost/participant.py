@@ -16,6 +16,7 @@ from typing import Tuple, Optional
 from .constants import Q
 from .point import Point, G
 from .aggregator import Aggregator
+from .matrix import Matrix
 
 
 class Participant:
@@ -637,3 +638,50 @@ class Participant:
             + (second_nonce * binding_value)
             + lagrange_coefficient * aggregate_share * challenge_hash
         ) % Q
+
+    def derive_coefficient_commitments(
+        self,
+        public_verification_shares: Tuple[Point, ...],
+        participant_indexes: Tuple[int, ...],
+    ) -> Tuple[Point, ...]:
+        """
+        Derive polynomial coefficient commitments from public verification shares.
+
+        This method computes the coefficient commitments for a polynomial given
+        a set of public verification shares and the corresponding participant
+        indexes. It uses a Vandermonde matrix approach to solve for the
+        coefficients. The matrix is constructed based on the participant
+        indexes, inverted, and then used to multiply with the matrix of public
+        verification shares. The result is the coefficients expressed as
+        points, representing the commitments.
+
+        Parameters:
+        public_verification_shares (Tuple[Point, ...]): A tuple of Point
+        instances representing public verification shares for each participant.
+        participant_indexes (Tuple[int, ...]): A tuple of integers representing
+        the indexes of participants which are used to build the Vandermonde
+        matrix.
+
+        Returns:
+        Tuple[Point, ...]: A tuple of Point instances representing the
+        polynomial coefficients, which are the derived commitments from the
+        provided public verification shares.
+
+        Raises:
+        ValueError: If the number of public verification shares does not match
+        the number of participant indexes.
+        """
+        if len(public_verification_shares) != len(participant_indexes):
+            raise ValueError(
+                """
+                The number of public verification shares must match the number
+                of participant indexes.
+                """
+            )
+
+        A = Matrix.create_vandermonde(participant_indexes)
+        A_inv = A.inverse_matrix()
+        Y = tuple((share,) for share in public_verification_shares)
+        coefficients = A_inv.mult_point_matrix(Y)
+
+        return tuple(coeff[0] for coeff in coefficients)
