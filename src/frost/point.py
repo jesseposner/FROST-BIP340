@@ -183,7 +183,7 @@ class Point:
 
         return self.__class__(self.x, P - self.y)
 
-    def _dbl(self) -> "Point":
+    def _dbl(self) -> Point:
         """
         Double the point on the elliptic curve. If the point is at infinity or the y-coordinate
         is zero (implying the point is of order 2), the result is the point at infinity.
@@ -251,7 +251,7 @@ class Point:
 
         return self + -other
 
-    def __rmul__(self, scalar: int) -> "Point":
+    def __rmul__(self, scalar: int) -> Point:
         """
         Multiply this point by an integer scalar using the double-and-add
         method, reduced modulo the curve order.
