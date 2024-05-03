@@ -57,6 +57,64 @@ class Participant:
         self.repair_shares: Optional[Tuple[int, ...]] = None
         self.aggregate_repair_share: Optional[int] = None
 
+        self.nonce_pair_r_ij : Optional[Tuple[int, Point] ] = None
+        self.nonce_R_ij_commitments : list[bytes] = []
+        self.nonce_R_ij : list[Point] = []
+        self.aggregate_nonce_R_i: Optional[Point] = None
+        self.challenge_hash_c: Optional[bytes] = None
+        self.participant_a_i: Optional[int] = None
+        self.agg_pk : Optional[Point] = None
+        self.partial_signature_s_ij: Optional[int] = None
+
+    def sample_random_rij(self) -> Tuple[bytes, Point]:
+        """
+        Sample a random integer point in the field of the elliptic curve.
+
+        Returns:
+        bytes: THe hash of the serialized point.
+        """
+        r_ij = secrets.randbits(256) % Q
+        R_ij = r_ij * G
+        self.nonce_pair_r_ij = (r_ij, R_ij)
+        return sha256(R_ij.sec_serialize()).digest()
+
+    def validate_other_party_nonce_commitments(self):
+        """
+        Validate the nonce commitments of the other participants.
+
+        Returns:
+        bool: True if the nonce commitments are valid, False otherwise.
+        """
+        if not self.nonce_R_ij_commitments:
+            raise ValueError("Nonce commitments have not been initialized.")
+
+        # zip over Rij and Rij commitments
+        assert len(self.nonce_R_ij) == len(self.nonce_R_ij_commitments)
+        for Rij, Rij_commitment in zip(self.nonce_R_ij, self.nonce_R_ij_commitments):
+            assert Rij_commitment == sha256(Rij.sec_serialize()).digest()
+    
+    def compute_aggregate_nonce_R_i(self) -> Point:
+        """
+        Aggregate the nonce commitments of all participants.
+
+        Returns:
+        Point: The aggregated nonce commitment as a point on the elliptic curve.
+        """
+        if not self.nonce_R_ij:
+            raise ValueError("Nonce commitments have not been initialized.")
+
+        # R_i = ∏ R_ij, 1 ≤ j ≤ n
+        aggregate_nonce_R_i = Point()
+        for Rij in self.nonce_R_ij:
+            aggregate_nonce_R_i += Rij
+        self.aggregate_nonce_R_i = aggregate_nonce_R_i
+        return aggregate_nonce_R_i
+    
+    def partial_sign(self, message: bytes) -> int:
+        # sij = rij + c*a_i*xij*lij
+        # c = H_2(R, Y, m)
+        return 0
+
     def init_keygen(self) -> None:
         """
         Initialize key generation for a FROST participant by setting up polynomial coefficients,
