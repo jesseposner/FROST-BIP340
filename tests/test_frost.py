@@ -615,16 +615,37 @@ class Tests(unittest.TestCase):
 
         self.assertEqual(p1.aggregate_public_key, p2.aggregate_public_key)
 
+        pk = p1.aggregate_public_key
+
         p1.generate_nonce()
         p2.generate_nonce()
 
         p1.verify_nonce_commitment(p2.nonce_commitment, p2.nonce_hash)
         p2.verify_nonce_commitment(p1.nonce_commitment, p1.nonce_hash)
 
-        aggregate_nonce_commitment = p1.generate_aggregate_nonce_commitment(
-            (p2.nonce_commitment,)
-        )
+        p1.generate_aggregate_nonce_commitment((p2.nonce_commitment,))
+        p2.generate_aggregate_nonce_commitment((p1.nonce_commitment,))
         self.assertEqual(
-            aggregate_nonce_commitment,
-            p2.generate_aggregate_nonce_commitment((p1.nonce_commitment,)),
+            p1.aggregate_nonce_commitment,
+            p2.aggregate_nonce_commitment,
         )
+
+        msg = b"fnord!"
+        psig1 = p1.partial_sign(msg)
+        psig2 = p2.partial_sign(msg)
+
+        sig = p1.signature((psig1, psig2))
+
+        sig_bytes = bytes.fromhex(sig)
+        nonce_commitment = Point.xonly_deserialize(sig_bytes[0:32].hex())
+        z = int.from_bytes(sig_bytes[32:64], "big")
+
+        # verify
+        # c = H_2(R, Y, m)
+        challenge_hash = Aggregator.challenge_hash(nonce_commitment, pk, msg)
+        # Negate Y if Y.y is odd
+        if pk.y % 2 != 0:
+            pk = -pk
+
+        # R ≟ g^z * Y^-c
+        self.assertTrue(nonce_commitment == (z * G) + (Q - challenge_hash) * pk)

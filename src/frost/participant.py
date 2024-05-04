@@ -110,10 +110,46 @@ class Participant:
         self.aggregate_nonce_R_i = aggregate_nonce_R_i
         return aggregate_nonce_R_i
 
-    def partial_sign(self, message: bytes) -> int:
+    def partial_sign(
+        self,
+        message: bytes,
+        participant_indexes: Tuple[int, ...],
+        aggregate_nonce_commitment: Point,
+        aggregate_public_key: Point,
+        keyagg_coeff: int,
+    ) -> int:
+        if not self.nonce_pair_r_ij:
+            raise ValueError("Nonce pair r_ij has not been initialized.")
         # sij = rij + c*a_i*xij*lij
         # c = H_2(R, Y, m)
-        return 0
+        challenge_hash = Aggregator.challenge_hash(
+            aggregate_nonce_commitment, aggregate_public_key, message
+        )
+        nonce = self.nonce_pair_r_ij[0]
+        if not nonce:
+            raise ValueError("Nonce has not been initialized.")
+        if not aggregate_nonce_commitment.y:
+            raise ValueError("Aggregate nonce commitment has not been initialized.")
+        if aggregate_nonce_commitment.y % 2 != 0:
+            nonce = Q - nonce
+
+        lagrange_coefficient = self._lagrange_coefficient(participant_indexes)
+        aggregate_share = self.aggregate_share
+        if not self.public_key:
+            raise ValueError("Public key has not been initialized.")
+        if not self.public_key.y:
+            raise ValueError("Public key has not been initialized.")
+        if not aggregate_share:
+            raise ValueError("Aggregate share has not been initialized.")
+        if not aggregate_public_key.y:
+            raise ValueError("Aggregate public key has not been initialized.")
+        if aggregate_public_key.y % 2 != 0:
+            aggregate_share = Q - aggregate_share
+
+        return (
+            nonce
+            + (lagrange_coefficient * aggregate_share * challenge_hash * keyagg_coeff)
+        ) % Q
 
     def init_keygen(self) -> None:
         """
