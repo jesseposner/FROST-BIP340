@@ -1,7 +1,7 @@
 import unittest
 
 import secrets
-from frost import Point, Participant, Aggregator, Q, G
+from frost import Point, Participant, MusigParticipant, Aggregator, Q, G
 
 
 class Tests(unittest.TestCase):
@@ -599,3 +599,30 @@ class Tests(unittest.TestCase):
             (p1.public_verification_share(), p2.public_verification_share()), (1, 2)
         )
         self.assertEqual(coefficient_commitments, derived_coefficient_commitments)
+
+    def test_musig(self):
+        p1 = MusigParticipant(index=1, participants=2)
+        p2 = MusigParticipant(index=2, participants=2)
+
+        p1.generate_private_key()
+        p2.generate_private_key()
+
+        p1.generate_public_key()
+        p2.generate_public_key()
+
+        p1.generate_aggregate_public_key((p2.public_key,))
+        p2.generate_aggregate_public_key((p1.public_key,))
+
+        self.assertEqual(p1.aggregate_public_key, p2.aggregate_public_key)
+
+        p1.generate_nonce()
+        p2.generate_nonce()
+
+        p1.verify_nonce_commitment(p2.nonce_commitment, p2.nonce_hash)
+        p2.verify_nonce_commitment(p1.nonce_commitment, p1.nonce_hash)
+
+        aggregate_nonce_commitment = p1.generate_aggregate_nonce_commitment((p2.nonce_commitment,))
+        self.assertEqual(
+            aggregate_nonce_commitment,
+            p2.generate_aggregate_nonce_commitment((p1.nonce_commitment,)),
+        )
