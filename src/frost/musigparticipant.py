@@ -44,11 +44,11 @@ class MusigParticipant:
         serialized_key_list.append(serialized_public_key)
         sorted_keys = b"".join(sorted(serialized_key_list))
         tweaked_keys = tuple(
-            self.generate_keyagg_coeff(serialized_public_key, sorted_keys)
+            self.generate_keyagg_coeff(key, sorted_keys)
             * Point.sec_deserialize(key.hex())
             for key in serialized_key_list
         )
-        self.aggregate_public_key = sum(tweaked_keys, Point(0, 0))
+        self.aggregate_public_key = sum(tweaked_keys, Point())
 
     def generate_keyagg_coeff(self, key: bytes, sorted_keys: bytes) -> int:
         key_agg_hash = sha256()
@@ -66,10 +66,16 @@ class MusigParticipant:
         self.nonce_commitment = self.nonce * G
         self.nonce_hash = sha256(self.nonce_commitment.sec_serialize()).hexdigest()
 
+    def verify_nonce_commitment(self, nonce_commitment: Point, nonce_hash: str) -> bool:
+        return nonce_hash == sha256(nonce_commitment.sec_serialize()).hexdigest()
+
     def generate_aggregate_nonce_commitment(
-        self, nonce_commitments: Tuple[Point, ...]
+        self, other_nonce_commitments: Tuple[Point, ...]
     ) -> Point:
-        return sum(nonce_commitments, Point(0, 0))
+        if self.nonce_commitment is None:
+            raise ValueError("Nonce commitment not set")
+
+        return sum(other_nonce_commitments, self.nonce_commitment)
 
     def signature(
         self, partial_signatures: Tuple[int, ...], aggregate_nonce_commitment: Point
