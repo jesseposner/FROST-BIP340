@@ -66,12 +66,12 @@ class Participant:
         self.agg_pk: Optional[Point] = None
         self.partial_signature_s_ij: Optional[int] = None
 
-    def sample_random_rij(self) -> Tuple[bytes, Point]:
+    def sample_random_rij(self) -> bytes:
         """
         Sample a random integer point in the field of the elliptic curve.
 
         Returns:
-        bytes: THe hash of the serialized point.
+        bytes: The hash of the serialized point.
         """
         r_ij = secrets.randbits(256) % Q
         R_ij = r_ij * G
