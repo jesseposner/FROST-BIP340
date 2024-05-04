@@ -130,7 +130,9 @@ class Tests(unittest.TestCase):
         self.assertTrue(R_i == (psig1 * G) + (Q - challenge_hash) * (keyagg_coeff * frost_pk))
         self.assertTrue(musig_nonce == (psig2 * G) + (Q - challenge_hash) * (m2.keyagg_coeff * musig_pk))
 
-        #  breakpoint()
-
         # R ≟ g^z * Y^-c
         self.assertTrue(nonce_commitment == (z * G) + (Q - challenge_hash) * agg_pk)
+
+        print("\nsig: ", sig)
+        print("\npublic key: ", agg_pk.xonly_serialize().hex())
+        print("\nmsg: ", msg.hex())
