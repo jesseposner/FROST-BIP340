@@ -47,7 +47,7 @@ class Tests(unittest.TestCase):
 
         self.assertEqual(pk1, pk2)
         self.assertEqual(pk2, pk3)
-    
+
     def test_sign(self):
         p1 = self.p1
         p2 = self.p2
@@ -64,7 +64,11 @@ class Tests(unittest.TestCase):
         p3.nonce_R_ij_commitments = all_commitments
 
         # Round 2. Send nonce Rij to all parties
-        all_nonces = (p1.nonce_pair_r_ij[1], p2.nonce_pair_r_ij[1], p3.nonce_pair_r_ij[1])
+        all_nonces = (
+            p1.nonce_pair_r_ij[1],
+            p2.nonce_pair_r_ij[1],
+            p3.nonce_pair_r_ij[1],
+        )
         p1.nonce_R_ij = all_nonces
         p2.nonce_R_ij = all_nonces
         p3.nonce_R_ij = all_nonces
