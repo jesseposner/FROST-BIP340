@@ -621,7 +621,9 @@ class Tests(unittest.TestCase):
         p1.verify_nonce_commitment(p2.nonce_commitment, p2.nonce_hash)
         p2.verify_nonce_commitment(p1.nonce_commitment, p1.nonce_hash)
 
-        aggregate_nonce_commitment = p1.generate_aggregate_nonce_commitment((p2.nonce_commitment,))
+        aggregate_nonce_commitment = p1.generate_aggregate_nonce_commitment(
+            (p2.nonce_commitment,)
+        )
         self.assertEqual(
             aggregate_nonce_commitment,
             p2.generate_aggregate_nonce_commitment((p1.nonce_commitment,)),
