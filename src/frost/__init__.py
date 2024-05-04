@@ -28,3 +28,4 @@ from .point import Point, P, Q, G
 from .participant import Participant
 from .aggregator import Aggregator
 from .matrix import Matrix
+from .musigparticipant import MusigParticipant
