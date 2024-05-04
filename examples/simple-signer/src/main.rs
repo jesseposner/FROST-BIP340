@@ -1,5 +1,6 @@
 use bitcoin::OutPoint;
 use clap::{Parser, Subcommand};
+mod transaction;
 
 #[derive(Clone, Parser)]
 #[clap()]
