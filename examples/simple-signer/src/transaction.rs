@@ -2,21 +2,20 @@ use std::process::Command;
 
 use bitcoin::hex::FromHex;
 use bitcoin::secp256k1::schnorr;
-use bitcoin::{hash_types, taproot, Network};
+use bitcoin::{taproot, Network};
 /// Create a dummy transaction to spned from
 ///
 use bitcoin::{
-    key::TweakedPublicKey, secp256k1, taproot::Signature, witness, Address, ScriptBuf, Transaction,
+    key::TweakedPublicKey, Address, ScriptBuf, Transaction,
     TxIn, Witness, XOnlyPublicKey,
 };
 
 pub fn create_address(agg_pk: bitcoin::PublicKey) -> Address {
-    let secp = secp256k1::Secp256k1::new();
     let x_only_pk = TweakedPublicKey::dangerous_assume_tweaked(XOnlyPublicKey::from(agg_pk));
     Address::p2tr_tweaked(x_only_pk, Network::Testnet)
 }
 
-pub fn create_transaction(prevout: bitcoin::OutPoint, addr: bitcoin::Address) -> Transaction {
+pub fn sign_transaction(prevout: bitcoin::OutPoint, addr: bitcoin::Address) -> Transaction {
     let mut tx = Transaction {
         version: bitcoin::transaction::Version(2),
         lock_time: bitcoin::absolute::LockTime::from_height(2).unwrap(),
@@ -62,7 +61,7 @@ mod tests {
 
     use bitcoin::hashes::Hash;
 
-    use super::create_transaction;
+    use super::sign_transaction;
 
 
     #[test]
@@ -73,7 +72,7 @@ mod tests {
         };
         let addr = bitcoin::Address::from_str("tb1pnzfn650wz5lptqttrhar64jycaf8tdy9gk69mud85dedww2lt3dsh73erq").unwrap();
         let addr_checked = addr.assume_checked();
-        let tx = create_transaction(prevout, addr_checked);
+        let tx = sign_transaction(prevout, addr_checked);
         let wit = tx.input[0].witness.to_vec();
         assert!(wit.len() > 0);
         assert!(wit[0].len() == 64);
