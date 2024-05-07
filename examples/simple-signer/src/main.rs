@@ -34,8 +34,11 @@ fn main() {
             spending_prevout,
         } => {
             let addr = bitcoin::Address::from_str(&destination_address).unwrap().assume_checked();
-
-            let signed_tx = transaction::sign_transaction(spending_prevout, addr);
+            let spending_utxo = bitcoin::TxOut {
+                value: bitcoin::Amount::from_sat(100_000),
+                script_pubkey: addr.script_pubkey(),
+            };
+            let signed_tx = transaction::sign_transaction(spending_prevout, spending_utxo, addr);
             let mut bytes = Vec::new();
             signed_tx.consensus_encode(&mut bytes).unwrap();
             println!("{}", bytes.to_hex_string(hex::Case::Lower));
