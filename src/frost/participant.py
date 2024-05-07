@@ -530,6 +530,36 @@ class Participant:
         # Y_i = g^s_i
         return self.aggregate_share * G
 
+    def derive_public_verification_share(
+        self, coefficient_commitments: Tuple[Point, ...], index: int, threshold: int
+    ) -> Point:
+        """
+        Compute the public verification share of any participant from the
+        coefficient commitments.
+
+        Parameters:
+        coefficient_commitments (Tuple[Point, ...]): A tuple of coefficients commitments.
+        index (int): The index of the participant whose public verification share is derived.
+        threshold (int): The minimum number of participants required to generate a valid signature.
+
+        Returns:
+        Point: The public verification share as a point on the elliptic curve.
+
+        Raises:
+        ValueError: If the number of coefficient commitments does not match the
+        threshold.
+        """
+        if len(coefficient_commitments) != threshold:
+            raise ValueError(
+                "The number of coefficient commitments must match the threshold."
+            )
+
+        expected_y_commitment = Point()  # Point at infinity
+        for k, commitment in enumerate(coefficient_commitments):
+            expected_y_commitment += (index**k % Q) * commitment
+
+        return expected_y_commitment
+
     def derive_public_key(self, other_secret_commitments: Tuple[Point, ...]) -> Point:
         """
         Derive the public key by summing up the secret commitments.
