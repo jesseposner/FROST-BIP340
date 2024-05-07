@@ -340,15 +340,15 @@ class Participant:
         return (numerator * pow(denominator, Q - 2, Q)) % Q
 
     def verify_share(
-        self, y: int, coefficient_commitments: Tuple[Point, ...], threshold: int
+        self, share: int, coefficient_commitments: Tuple[Point, ...], threshold: int
     ) -> bool:
         """
         Verify that a given share matches the expected value derived from coefficient commitments.
 
         Parameters:
-        y (Point): The share to verify.
+        share (int): The share to verify.
         coefficient_commitments (Tuple[Point, ...]): The commitments of the coefficients.
-        threshold (int): The number of required commitments.
+        threshold (int): The minimum number of participants required to generate a valid signature.
 
         Returns:
         bool: True if the share is valid according to the commitments, False otherwise.
@@ -362,12 +362,12 @@ class Participant:
             )
 
         # ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
-        expected_y_commitment = Point()  # Point at infinity
-        for k, commitment in enumerate(coefficient_commitments):
-            expected_y_commitment += (self.index**k % Q) * commitment
+        expected_share = self.derive_public_verification_share(
+            coefficient_commitments, self.index, threshold
+        )
 
         # g^f_l(i) ≟ ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
-        return y * G == expected_y_commitment
+        return share * G == expected_share
 
     def aggregate_shares(self, other_shares: Tuple[int, ...]) -> None:
         """
