@@ -19,7 +19,7 @@ Classes:
 Usage:
 The Matrix class can be instantiated directly with a 2D tuple representing the
 matrix, or via factory methods like `from_vandermonde` which create a
-Vandermonde matrix from given indices and a polynomial degree.
+Vandermonde matrix from given indices.
 """
 
 from __future__ import annotations
