@@ -48,6 +48,21 @@ class Tests(unittest.TestCase):
         self.assertEqual(pk1, pk2)
         self.assertEqual(pk2, pk3)
 
+        p1.derive_group_commitments((p2.coefficient_commitments, p3.coefficient_commitments))
+        p2.derive_group_commitments((p1.coefficient_commitments, p3.coefficient_commitments))
+        p3.derive_group_commitments((p1.coefficient_commitments, p2.coefficient_commitments))
+
+        group_commitments1 = p1.group_commitments
+        group_commitments2 = p2.group_commitments
+        group_commitments3 = p3.group_commitments
+
+        self.assertEqual(group_commitments1, group_commitments2)
+        self.assertEqual(group_commitments2, group_commitments3)
+
+        self.assertTrue(p1.verify_share(p1.aggregate_share, group_commitments1, 2))
+        self.assertTrue(p2.verify_share(p2.aggregate_share, group_commitments1, 2))
+        self.assertTrue(p3.verify_share(p3.aggregate_share, group_commitments1, 2))
+
     def test_keygen(self):
         p1 = self.p1
         p2 = self.p2
@@ -216,6 +231,21 @@ class Tests(unittest.TestCase):
         self.assertTrue(
             p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
         )
+
+        p1.derive_group_commitments((p2.coefficient_commitments, p3.coefficient_commitments))
+        p2.derive_group_commitments((p1.coefficient_commitments, p3.coefficient_commitments))
+        p3.derive_group_commitments((p1.coefficient_commitments, p2.coefficient_commitments))
+
+        group_commitments1 = p1.group_commitments
+        group_commitments2 = p2.group_commitments
+        group_commitments3 = p3.group_commitments
+
+        self.assertEqual(group_commitments1, group_commitments2)
+        self.assertEqual(group_commitments2, group_commitments3)
+
+        self.assertTrue(p1.verify_share(p1.aggregate_share, group_commitments1, 2))
+        self.assertTrue(p2.verify_share(p2.aggregate_share, group_commitments1, 2))
+        self.assertTrue(p3.verify_share(p3.aggregate_share, group_commitments1, 2))
 
         # Reconstruct secret
         pk1 = p1.public_key
@@ -574,14 +604,7 @@ class Tests(unittest.TestCase):
         p2 = self.p2
         p3 = self.p3
 
-        coefficient_commitments = tuple(
-            sum(values, Point())
-            for values in zip(
-                p1.coefficient_commitments,
-                p2.coefficient_commitments,
-                p3.coefficient_commitments,
-            )
-        )
+        coefficient_commitments = p1.group_commitments
         self.assertEqual(
             p1.public_verification_share(),
             coefficient_commitments[0] + (1 * coefficient_commitments[1]),
