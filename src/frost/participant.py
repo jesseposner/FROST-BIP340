@@ -56,6 +56,7 @@ class Participant:
         self.public_key: Optional[Point] = None
         self.repair_shares: Optional[Tuple[int, ...]] = None
         self.aggregate_repair_share: Optional[int] = None
+        self.group_commitments: Optional[Tuple[Point, ...]] = None
 
     def init_keygen(self) -> None:
         """
@@ -588,6 +589,53 @@ class Participant:
 
         self.public_key = public_key
         return public_key
+
+    def derive_group_commitments(
+        self, other_coefficient_commitments: Tuple[Tuple[Point, ...]]
+    ) -> None:
+        """
+        Derives and updates the group commitments for the instance by combining
+        existing coefficient commitments with those passed as an argument.
+
+        This method performs an element-wise summation of point tuples from
+        `self.coefficient_commitments` and `other_coefficient_commitments`. If
+        `self.group_commitments` is already initialized, it updates it by
+        further combining it with the newly derived group commitments;
+        otherwise, it initializes `self.group_commitments` with these derived
+        values.
+
+        Parameters:
+        other_coefficient_commitments (Tuple[Tuple[Point, ...]]): A tuple of
+        tuples containing Point objects, representing the coefficient
+        commitments from the other participants.
+
+        Raises:
+        ValueError: If `self.coefficient_commitments` is not initialized or is
+        empty, indicating that there are no existing coefficient commitments to
+        combine with.
+
+        Returns:
+        None: This method updates the group commitments in-place and does not return any value.
+        """
+        if not self.coefficient_commitments:
+            raise ValueError(
+                "Coefficient commitments have not been initialized or are empty."
+            )
+
+        group_commitments = tuple(
+            sum(commitments, Point())
+            for commitments in zip(
+                *(other_coefficient_commitments + (self.coefficient_commitments,))
+            )
+        )
+
+        if self.group_commitments is not None:
+            self.group_commitments = tuple(
+                sum(commitments, Point())
+                for commitments in zip(self.group_commitments, group_commitments)
+            )
+        else:
+            self.group_commitments = group_commitments
 
     def generate_nonce_pair(self) -> None:
         """
