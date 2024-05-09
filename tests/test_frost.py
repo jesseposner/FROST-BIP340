@@ -48,9 +48,15 @@ class Tests(unittest.TestCase):
         self.assertEqual(pk1, pk2)
         self.assertEqual(pk2, pk3)
 
-        p1.derive_group_commitments((p2.coefficient_commitments, p3.coefficient_commitments))
-        p2.derive_group_commitments((p1.coefficient_commitments, p3.coefficient_commitments))
-        p3.derive_group_commitments((p1.coefficient_commitments, p2.coefficient_commitments))
+        p1.derive_group_commitments(
+            (p2.coefficient_commitments, p3.coefficient_commitments)
+        )
+        p2.derive_group_commitments(
+            (p1.coefficient_commitments, p3.coefficient_commitments)
+        )
+        p3.derive_group_commitments(
+            (p1.coefficient_commitments, p2.coefficient_commitments)
+        )
 
         group_commitments1 = p1.group_commitments
         group_commitments2 = p2.group_commitments
@@ -232,9 +238,15 @@ class Tests(unittest.TestCase):
             p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
         )
 
-        p1.derive_group_commitments((p2.coefficient_commitments, p3.coefficient_commitments))
-        p2.derive_group_commitments((p1.coefficient_commitments, p3.coefficient_commitments))
-        p3.derive_group_commitments((p1.coefficient_commitments, p2.coefficient_commitments))
+        p1.derive_group_commitments(
+            (p2.coefficient_commitments, p3.coefficient_commitments)
+        )
+        p2.derive_group_commitments(
+            (p1.coefficient_commitments, p3.coefficient_commitments)
+        )
+        p3.derive_group_commitments(
+            (p1.coefficient_commitments, p2.coefficient_commitments)
+        )
 
         group_commitments1 = p1.group_commitments
         group_commitments2 = p2.group_commitments
@@ -286,8 +298,44 @@ class Tests(unittest.TestCase):
         p2.generate_repair_shares((3,), 1)
         p3.generate_repair_shares((2,), 1)
 
-        p2.aggregate_repair_shares((p3.repair_shares[1],))
-        p3.aggregate_repair_shares((p2.repair_shares[1],))
+        self.assertTrue(
+            p2.verify_repair_share(
+                p3.repair_shares[p2.index - 1],
+                p3.repair_share_commitments,
+                (2, 3),
+                1,
+                3,
+            )
+        )
+        self.assertTrue(
+            p3.verify_repair_share(
+                p2.repair_shares[p3.index - 1],
+                p2.repair_share_commitments,
+                (2, 3),
+                1,
+                2,
+            )
+        )
+
+        p2.aggregate_repair_shares((p3.repair_shares[p2.index - 1],))
+        p3.aggregate_repair_shares((p2.repair_shares[p3.index - 1],))
+
+        self.assertTrue(
+            p1.verify_aggregate_repair_share(
+                p2.aggregate_repair_share,
+                (p2.repair_share_commitments, p3.repair_share_commitments),
+                (2, 3),
+                2,
+            )
+        )
+        self.assertTrue(
+            p1.verify_aggregate_repair_share(
+                p3.aggregate_repair_share,
+                (p2.repair_share_commitments, p3.repair_share_commitments),
+                (2, 3),
+                3,
+            )
+        )
 
         p1.repair_share((p2.aggregate_repair_share, p3.aggregate_repair_share))
         self.assertEqual(lost_share, p1.aggregate_share)
@@ -298,8 +346,44 @@ class Tests(unittest.TestCase):
         p1.generate_repair_shares((3,), 2)
         p3.generate_repair_shares((1,), 2)
 
-        p1.aggregate_repair_shares((p3.repair_shares[1],))
-        p3.aggregate_repair_shares((p1.repair_shares[1],))
+        self.assertTrue(
+            p1.verify_repair_share(
+                p3.repair_shares[p1.index - 1],
+                p3.repair_share_commitments,
+                (1, 3),
+                2,
+                3,
+            )
+        )
+        self.assertTrue(
+            p3.verify_repair_share(
+                p1.repair_shares[p3.index - 1],
+                p1.repair_share_commitments,
+                (1, 3),
+                2,
+                1,
+            )
+        )
+
+        p1.aggregate_repair_shares((p3.repair_shares[p1.index - 1],))
+        p3.aggregate_repair_shares((p1.repair_shares[p3.index - 1],))
+
+        self.assertTrue(
+            p2.verify_aggregate_repair_share(
+                p1.aggregate_repair_share,
+                (p1.repair_share_commitments, p3.repair_share_commitments),
+                (1, 3),
+                1,
+            )
+        )
+        self.assertTrue(
+            p2.verify_aggregate_repair_share(
+                p3.aggregate_repair_share,
+                (p1.repair_share_commitments, p3.repair_share_commitments),
+                (1, 3),
+                3,
+            )
+        )
 
         p2.repair_share((p1.aggregate_repair_share, p3.aggregate_repair_share))
         self.assertEqual(lost_share, p2.aggregate_share)
@@ -310,8 +394,44 @@ class Tests(unittest.TestCase):
         p1.generate_repair_shares((2,), 3)
         p2.generate_repair_shares((1,), 3)
 
-        p1.aggregate_repair_shares((p2.repair_shares[1],))
-        p2.aggregate_repair_shares((p1.repair_shares[1],))
+        self.assertTrue(
+            p1.verify_repair_share(
+                p2.repair_shares[p1.index - 1],
+                p2.repair_share_commitments,
+                (1, 2),
+                3,
+                2,
+            )
+        )
+        self.assertTrue(
+            p2.verify_repair_share(
+                p1.repair_shares[p2.index - 1],
+                p1.repair_share_commitments,
+                (1, 2),
+                3,
+                1,
+            )
+        )
+
+        p1.aggregate_repair_shares((p2.repair_shares[p1.index - 1],))
+        p2.aggregate_repair_shares((p1.repair_shares[p2.index - 1],))
+
+        self.assertTrue(
+            p3.verify_aggregate_repair_share(
+                p1.aggregate_repair_share,
+                (p1.repair_share_commitments, p2.repair_share_commitments),
+                (1, 2),
+                1,
+            )
+        )
+        self.assertTrue(
+            p3.verify_aggregate_repair_share(
+                p2.aggregate_repair_share,
+                (p1.repair_share_commitments, p2.repair_share_commitments),
+                (1, 2),
+                2,
+            )
+        )
 
         p3.repair_share((p1.aggregate_repair_share, p2.aggregate_repair_share))
         self.assertEqual(lost_share, p3.aggregate_share)
@@ -329,8 +449,46 @@ class Tests(unittest.TestCase):
         p1.generate_repair_shares((2,), 4)
         p2.generate_repair_shares((1,), 4)
 
-        p1.aggregate_repair_shares((p2.repair_shares[1],))
-        p2.aggregate_repair_shares((p1.repair_shares[1],))
+        self.assertTrue(
+            p1.verify_repair_share(
+                p2.repair_shares[p1.index - 1],
+                p2.repair_share_commitments,
+                (1, 2),
+                4,
+                2,
+            )
+        )
+        self.assertTrue(
+            p2.verify_repair_share(
+                p1.repair_shares[p2.index - 1],
+                p1.repair_share_commitments,
+                (1, 2),
+                4,
+                1,
+            )
+        )
+
+        p1.aggregate_repair_shares((p2.repair_shares[p1.index - 1],))
+        p2.aggregate_repair_shares((p1.repair_shares[p2.index - 1],))
+
+        p4.group_commitments = p1.group_commitments
+
+        self.assertTrue(
+            p4.verify_aggregate_repair_share(
+                p1.aggregate_repair_share,
+                (p1.repair_share_commitments, p2.repair_share_commitments),
+                (1, 2),
+                1,
+            )
+        )
+        self.assertTrue(
+            p4.verify_aggregate_repair_share(
+                p2.aggregate_repair_share,
+                (p1.repair_share_commitments, p2.repair_share_commitments),
+                (1, 2),
+                2,
+            )
+        )
 
         p4.repair_share((p1.aggregate_repair_share, p2.aggregate_repair_share))
 
@@ -504,9 +662,15 @@ class Tests(unittest.TestCase):
         p2.generate_repair_shares((1, 3), revealed_share_index)
         p3.generate_repair_shares((1, 2), revealed_share_index)
 
-        p1.aggregate_repair_shares((p2.repair_shares[1], p3.repair_shares[1]))
-        p2.aggregate_repair_shares((p1.repair_shares[1], p3.repair_shares[2]))
-        p3.aggregate_repair_shares((p1.repair_shares[2], p2.repair_shares[2]))
+        p1.aggregate_repair_shares(
+            (p2.repair_shares[p1.index - 1], p3.repair_shares[p1.index - 1])
+        )
+        p2.aggregate_repair_shares(
+            (p1.repair_shares[p2.index - 1], p3.repair_shares[p2.index - 1])
+        )
+        p3.aggregate_repair_shares(
+            (p1.repair_shares[p3.index - 1], p2.repair_shares[p3.index - 1])
+        )
 
         revealed.repair_share(
             (

@@ -12,7 +12,7 @@ creation, and verifying the integrity of the process.
 
 from hashlib import sha256
 import secrets
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from .constants import Q
 from .point import Point, G
 from .aggregator import Aggregator
@@ -54,8 +54,9 @@ class Participant:
         self.nonce_pair: Optional[Tuple[int, int]] = None
         self.nonce_commitment_pair: Optional[Tuple[Point, Point]] = None
         self.public_key: Optional[Point] = None
-        self.repair_shares: Optional[Tuple[int, ...]] = None
+        self.repair_shares: Optional[Tuple[Optional[int], ...]] = None
         self.aggregate_repair_share: Optional[int] = None
+        self.repair_share_commitments: Optional[Tuple[Optional[Point], ...]] = None
         self.group_commitments: Optional[Tuple[Point, ...]] = None
 
     def init_keygen(self) -> None:
@@ -262,7 +263,8 @@ class Participant:
         self, repair_participants: Tuple[int, ...], index: int
     ) -> None:
         """
-        Generate repair shares to assist a participant in recovering a lost share.
+        Generate repair shares and commitments to assist a participant in
+        recovering a lost share.
 
         Parameters:
         repair_participants (Tuple[int, ...]): Indices of participants involved in the repair.
@@ -282,7 +284,130 @@ class Participant:
             (lagrange_coefficient * self.aggregate_share) - sum(random_shares)
         ) % Q
 
-        self.repair_shares = random_shares + (final_share,)
+        max_index = max(repair_participants + (self.index,))
+        repair_shares: List[Optional[int]] = [None] * max_index
+        for participant_index, share in zip(
+            repair_participants + (self.index,), random_shares + (final_share,)
+        ):
+            repair_shares[participant_index - 1] = share
+
+        self.repair_shares = tuple(repair_shares)
+        self.repair_share_commitments = tuple(
+            share * G if share is not None else None for share in self.repair_shares
+        )
+
+    def verify_aggregate_repair_share(
+        self,
+        aggregate_repair_share: int,
+        repair_share_commitments: Tuple[Tuple[Point, ...]],
+        repair_participants: Tuple[int, ...],
+        aggregator_index: int,
+    ) -> bool:
+        """
+        Verify the aggregate repair share against the provided commitments.
+
+        Parameters:
+        aggregate_repair_share (int): The aggregate repair share to verify.
+        repair_share_commitments (Tuple[Tuple[Point, ...]]): The commitments of
+        the participants who generated the repair shares that were aggregated.
+        repair_participants (Tuple[int, ...]): The indices of the participants
+        who generated repair shares.
+        aggregator_index (int): The index of the participant who generated the
+        aggregate repair share being verified.
+
+        Returns:
+        bool: True if the aggregate repair share is valid according to the
+        commitments, False otherwise.
+
+        Raises:
+        ValueError: If the number of repair share commitments does not match the threshold.
+        """
+        if not self.group_commitments:
+            raise ValueError("Group commitments must be initialized.")
+
+        for dealer_index, commitments in zip(
+            repair_participants, repair_share_commitments
+        ):
+            stripped_repair_share_commitments = tuple(
+                commitment for commitment in commitments if commitment is not None
+            )
+            if len(stripped_repair_share_commitments) != self.threshold:
+                raise ValueError(
+                    "The number of repair share commitments must match the threshold."
+                )
+
+            lagrange_coefficient = self._lagrange_coefficient(
+                repair_participants, self.index, dealer_index
+            )
+            dealer_public_share = self.derive_public_verification_share(
+                self.group_commitments, dealer_index, self.threshold
+            )
+            if lagrange_coefficient * dealer_public_share != sum(
+                stripped_repair_share_commitments, Point()
+            ):
+                return False
+
+        aggregate_repair_share_commitment = sum(
+            tuple(
+                commitments[aggregator_index - 1]
+                for commitments in repair_share_commitments
+            ),
+            Point(),
+        )
+
+        return aggregate_repair_share * G == aggregate_repair_share_commitment
+
+    def verify_repair_share(
+        self,
+        repair_share: int,
+        repair_share_commitments: Tuple[Point, ...],
+        repair_participants: Tuple[int, ...],
+        repair_index: int,
+        dealer_index: int,
+    ) -> bool:
+        """
+        Verify the repair share against the provided commitments.
+
+        Parameters:
+        repair_share (int): The repair share to verify.
+        repair_share_commitments (Tuple[Point, ...]): The commitments of the
+        participant who generated the repair share.
+        repair_participants (Tuple[int, ...]): The indices of the participants
+        who generated repair shares.
+        repair_index (int): The index of the participant with the lost share.
+        dealer_index (int): The index of the participant who generated the repair shares.
+
+        Returns:
+        bool: True if the repair share is valid according to the commitments, False otherwise.
+
+        Raises:
+        ValueError: If the number of repair share commitments does not match
+        the threshold, or the group commitment is uninitialized.
+        """
+        if not self.group_commitments:
+            raise ValueError("Group commitments must be initialized.")
+        if repair_share * G != repair_share_commitments[self.index - 1]:
+            return False
+        stripped_repair_share_commitments = tuple(
+            commitment
+            for commitment in repair_share_commitments
+            if commitment is not None
+        )
+        if len(stripped_repair_share_commitments) != self.threshold:
+            raise ValueError(
+                "The number of repair share commitments must match the threshold."
+            )
+
+        lagrange_coefficient = self._lagrange_coefficient(
+            repair_participants, repair_index, dealer_index
+        )
+        dealer_public_share = self.derive_public_verification_share(
+            self.group_commitments, dealer_index, self.threshold
+        )
+
+        return lagrange_coefficient * dealer_public_share == sum(
+            stripped_repair_share_commitments, Point()
+        )
 
     def _evaluate_polynomial(self, x: int) -> int:
         """
@@ -308,7 +433,10 @@ class Participant:
         return y
 
     def _lagrange_coefficient(
-        self, participant_indexes: Tuple[int, ...], x: int = 0
+        self,
+        participant_indexes: Tuple[int, ...],
+        x: int = 0,
+        participant_index: Optional[int] = None,
     ) -> int:
         """
         Calculate the Lagrange coefficient for this participant relative to other participants.
@@ -318,6 +446,8 @@ class Participant:
         participants involved in the calculation.
         x (int, optional): The point at which the polynomial is evaluated.
         Defaults to 0, representing the polynomial's constant term.
+        participant_index (int, optional): The index of the participant for
+        which the coefficient is calculated.
 
         Returns:
         int: The Lagrange coefficient used in polynomial reconstruction or signature generation.
@@ -329,14 +459,17 @@ class Participant:
         if len(participant_indexes) != len(set(participant_indexes)):
             raise ValueError("Participant indexes must be unique.")
 
+        if participant_index is None:
+            participant_index = self.index
+
         # λ_i(x) = ∏ (x - p_j)/(p_i - p_j), 1 ≤ j ≤ α, j ≠ i
         numerator = 1
         denominator = 1
         for index in participant_indexes:
-            if index == self.index:
+            if index == participant_index:
                 continue
             numerator = numerator * (x - index)
-            denominator = denominator * (self.index - index)
+            denominator = denominator * (participant_index - index)
         return (numerator * pow(denominator, Q - 2, Q)) % Q
 
     def verify_share(
@@ -432,8 +565,7 @@ class Participant:
                 """
             )
 
-        # Always assign the first share to the participant who generated them.
-        aggregate_repair_share = self.repair_shares[0]
+        aggregate_repair_share = self.repair_shares[self.index - 1]
         if not isinstance(aggregate_repair_share, int):
             raise TypeError("All shares must be integers.")
         for other_share in other_shares:
