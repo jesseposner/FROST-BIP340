@@ -684,9 +684,12 @@ class Tests(unittest.TestCase):
         self.assertEqual(group_commitments2, group_commitments3)
         self.assertEqual(group_commitments3, group_commitments4)
 
-        self.assertTrue(p1.verify_share(p1.aggregate_share, group_commitments1, 3))
-        self.assertTrue(p2.verify_share(p2.aggregate_share, group_commitments1, 3))
-        self.assertTrue(p3.verify_share(p3.aggregate_share, group_commitments1, 3))
+        group_commitments = group_commitments1
+
+        self.assertTrue(p1.verify_share(p1.aggregate_share, group_commitments, 3))
+        self.assertTrue(p2.verify_share(p2.aggregate_share, group_commitments, 3))
+        self.assertTrue(p3.verify_share(p3.aggregate_share, group_commitments, 3))
+        self.assertTrue(p4.verify_share(p4.aggregate_share, group_commitments, 3))
 
         l1 = p1._lagrange_coefficient((2, 3))
         l2 = p2._lagrange_coefficient((1, 3))
@@ -764,8 +767,6 @@ class Tests(unittest.TestCase):
         p3.aggregate_repair_shares(
             (p1.get_repair_share(p3.index), p2.get_repair_share(p3.index))
         )
-
-        group_commitments = group_commitments1
 
         self.assertTrue(
             revealed.verify_aggregate_repair_share(
