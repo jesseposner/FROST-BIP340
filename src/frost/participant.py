@@ -670,7 +670,7 @@ class Participant:
                 self.group_commitments, index, self.threshold + 1
             )
             inverse_i_j = pow((index - revealed_share_index), Q - 2, Q) % Q
-            Fp_i = F_j + (-revealed_share_index * inverse_i_j) * (F_i - F_j)
+            Fp_i = F_j - (revealed_share_index * inverse_i_j) * (F_i - F_j)
             public_verification_shares.append(Fp_i)
             indexes.append(index)
         group_commitments = self.derive_coefficient_commitments(
