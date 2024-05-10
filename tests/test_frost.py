@@ -841,6 +841,29 @@ class Tests(unittest.TestCase):
         secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
         self.assertEqual(secret * G, pk1)
 
+        new_group_commitments1 = p1.group_commitments
+        new_group_commitments2 = p2.group_commitments
+        new_group_commitments3 = p3.group_commitments
+        new_group_commitments4 = p4.group_commitments
+
+        self.assertEqual(
+            new_group_commitments1, new_group_commitments2
+        )
+        self.assertEqual(
+            new_group_commitments2, new_group_commitments3
+        )
+        self.assertEqual(
+            new_group_commitments3, new_group_commitments4
+        )
+        self.assertNotEqual(group_commitments, new_group_commitments1)
+
+        new_group_commitments = new_group_commitments1
+
+        self.assertTrue(p1.verify_share(p1.aggregate_share, new_group_commitments, 2))
+        self.assertTrue(p2.verify_share(p2.aggregate_share, new_group_commitments, 2))
+        self.assertTrue(p3.verify_share(p3.aggregate_share, new_group_commitments, 2))
+        self.assertTrue(p4.verify_share(p4.aggregate_share, new_group_commitments, 2))
+
     def test_threshold_increase(self):
         p1 = self.p1
         p2 = self.p2

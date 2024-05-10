@@ -652,13 +652,31 @@ class Participant:
         """
         if self.aggregate_share is None:
             raise ValueError("Participant's share has not been initialized.")
+        if self.group_commitments is None:
+            raise ValueError("Group commitments have not been initialized.")
 
-        self.threshold -= 1
         # f'(i) = f(j) - j((f(i) - f(j))/(i - j))
         numerator = self.aggregate_share - revealed_share
         denominator = self.index - revealed_share_index
         quotient = (numerator * pow(denominator, Q - 2, Q)) % Q
         self.aggregate_share = (revealed_share - (revealed_share_index * quotient)) % Q
+
+        self.threshold -= 1
+        public_verification_shares = []
+        indexes = []
+        F_j = revealed_share * G
+        for index in range(1, self.threshold + 1):
+            F_i = self.derive_public_verification_share(
+                self.group_commitments, index, self.threshold + 1
+            )
+            inverse_i_j = pow((index - revealed_share_index), Q - 2, Q) % Q
+            Fp_i = F_j + (-revealed_share_index * inverse_i_j) * (F_i - F_j)
+            public_verification_shares.append(Fp_i)
+            indexes.append(index)
+        group_commitments = self.derive_coefficient_commitments(
+            tuple(public_verification_shares), tuple(indexes)
+        )
+        self.group_commitments = group_commitments
 
     def increase_threshold(self, other_shares: Tuple[int, ...]) -> None:
         """
