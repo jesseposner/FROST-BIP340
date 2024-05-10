@@ -846,15 +846,9 @@ class Tests(unittest.TestCase):
         new_group_commitments3 = p3.group_commitments
         new_group_commitments4 = p4.group_commitments
 
-        self.assertEqual(
-            new_group_commitments1, new_group_commitments2
-        )
-        self.assertEqual(
-            new_group_commitments2, new_group_commitments3
-        )
-        self.assertEqual(
-            new_group_commitments3, new_group_commitments4
-        )
+        self.assertEqual(new_group_commitments1, new_group_commitments2)
+        self.assertEqual(new_group_commitments2, new_group_commitments3)
+        self.assertEqual(new_group_commitments3, new_group_commitments4)
         self.assertNotEqual(group_commitments, new_group_commitments1)
 
         new_group_commitments = new_group_commitments1
