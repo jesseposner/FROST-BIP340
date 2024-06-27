@@ -175,7 +175,7 @@ class Aggregator:
         Returns:
         Tuple[bytes, Tuple[Tuple[Point, Point], ...]]: A tuple containing the
         message and the list of nonce commitments organized by participant
-        indexes.
+        indices.
         """
         # B = ⟨(i, D_i, E_i)⟩_i∈S
         # (m, B)
