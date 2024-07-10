@@ -10,9 +10,9 @@ signature. It ensures that all components are correctly combined according to
 the FROST protocol.
 """
 
-from typing import Tuple
+from typing import Tuple, Optional
 from hashlib import sha256
-from .point import Point
+from .point import Point, G
 from .constants import Q
 
 
@@ -25,6 +25,8 @@ class Aggregator:
         message: bytes,
         nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
         participant_indexes: Tuple[int, ...],
+        bip32_tweak: Optional[int] = None,
+        taproot_tweak: Optional[int] = None,
     ):
         """
         Initialize the Aggregator for managing and processing cryptographic
@@ -34,8 +36,14 @@ class Aggregator:
         public_key (Point): The public key used in the signature verification process.
         message (bytes): The message that is being signed.
         nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): A tuple of
-        nonce commitments from each participant.
+            nonce commitments from each participant.
         participant_indexes (Tuple[int, ...]): Indices of participants involved in the signature process.
+        bip32_tweak (Optional[int]): Optional BIP32 tweak value for key tweaking.
+        taproot_tweak (Optional[int]): Optional Taproot tweak value for key tweaking.
+
+        Raises:
+        ValueError: If only one tweak (either bip32_tweak or taproot_tweak) is provided.
+                    Both or neither must be provided.
 
         This setup prepares the Aggregator to handle the aggregation of nonce
         commitments and signatures.
@@ -48,6 +56,28 @@ class Aggregator:
         self.nonce_commitment_pairs = nonce_commitment_pairs
         # S = α: t ≤ α ≤ n
         self.participant_indexes = participant_indexes
+
+        self.tweaked_key = None
+        self.tweak = None
+
+        if (bip32_tweak is None) != (taproot_tweak is None):
+            raise ValueError(
+                "Both bip32_tweak and taproot_tweak must be provided together, or neither."
+            )
+
+        if bip32_tweak is not None and taproot_tweak is not None:
+            tweaked_key, tweak, _ = self._compute_tweaks(
+                bip32_tweak, taproot_tweak, public_key
+            )
+            self.tweaked_key = tweaked_key
+            self.tweak = tweak
+
+    @classmethod
+    def tweak_key(
+        cls, bip32_tweak: int, taproot_tweak: int, public_key: Point
+    ) -> Tuple[Point, int]:
+        tweaked_key, _, p = cls._compute_tweaks(bip32_tweak, taproot_tweak, public_key)
+        return tweaked_key, p
 
     @classmethod
     def group_commitment(
@@ -198,7 +228,64 @@ class Aggregator:
         nonce_commitment = group_commitment.xonly_serialize()
 
         # TODO: verify each signature share
-        z = (sum(signature_shares) % Q).to_bytes(32, "big")
+        z = sum(signature_shares) % Q
+
+        if self.tweak and self.tweaked_key:
+            challenge_hash = self.challenge_hash(
+                group_commitment, self.tweaked_key, self.message
+            )
+            z = (z + (challenge_hash * self.tweak)) % Q
 
         # σ = (R, z)
-        return (nonce_commitment + z).hex()
+        return (nonce_commitment + z.to_bytes(32, "big")).hex()
+
+    @classmethod
+    def _compute_tweaks(
+        cls, bip32_tweak: int, taproot_tweak: int, public_key: Point
+    ) -> Tuple[Point, int, int]:
+        """
+        Compute the tweaked keys and adjustments for the given BIP32 and Taproot tweaks.
+
+        This method derives a tweaked public key and calculates the corresponding
+        adjusted tweaks for use in cryptographic operations. It ensures that the
+        derived keys are valid and handles odd parity cases by adjusting the
+        tweaks accordingly.
+
+        Parameters:
+        bip32_tweak (int): The BIP32 tweak value to adjust the public key.
+        taproot_tweak (int): The Taproot tweak value to adjust the public key.
+        public_key (Point): The initial public key used as the base for tweaking.
+
+        Returns:
+        Tuple[Point, int, int]: A tuple containing the aggregate tweaked key (Point),
+                                the adjusted aggregate tweak (int), and the BIP32 key
+                                parity (int).
+
+        Raises:
+        ValueError: If the resulting tweaked public key is invalid.
+        """
+        # Derive the BIP32 child key
+        bip32_key = public_key + (bip32_tweak * G)
+        if bip32_key.y is None:
+            raise ValueError("Invalid public key.")
+        is_bip32_key_odd = bip32_key.y % 2 != 0
+        # Derive the x-only key
+        if is_bip32_key_odd:
+            bip32_key = -bip32_key
+        # Track the parity
+        bip32_parity = 1 if is_bip32_key_odd else 0
+        # Adjust the tweak if the key is odd
+        adjusted_bip32_tweak = -bip32_tweak if is_bip32_key_odd else bip32_tweak
+
+        # Add the taproot key
+        aggregate_key = bip32_key + (taproot_tweak * G)
+        if aggregate_key.y is None:
+            raise ValueError("Invalid public key.")
+        # Aggregate the tweaks
+        aggregate_tweak = (adjusted_bip32_tweak + taproot_tweak) % Q
+        # Adjust the aggregate tweak if the key is odd
+        adjusted_aggregate_tweak = (
+            (-aggregate_tweak) % Q if aggregate_key.y % 2 != 0 else aggregate_tweak
+        )
+
+        return aggregate_key, adjusted_aggregate_tweak, bip32_parity

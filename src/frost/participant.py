@@ -838,6 +838,8 @@ class Participant:
         message: bytes,
         nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
         participant_indexes: Tuple[int, ...],
+        bip32_tweak: Optional[int] = None,
+        taproot_tweak: Optional[int] = None,
     ) -> int:
         """
         Generate a signature contribution for this participant.
@@ -870,9 +872,16 @@ class Participant:
         if group_commitment.x is None or group_commitment.y is None:
             raise ValueError("Group commitment is the point at infinity.")
 
+        public_key = self.public_key
+        parity = 0
+        if bip32_tweak is not None and taproot_tweak is not None:
+            public_key, parity = Aggregator.tweak_key(
+                bip32_tweak, taproot_tweak, self.public_key
+            )
+
         # c = H_2(R, Y, m)
         challenge_hash = Aggregator.challenge_hash(
-            group_commitment, self.public_key, message
+            group_commitment, public_key, message
         )
 
         # d_i, e_i
@@ -893,7 +902,9 @@ class Participant:
         aggregate_share = self.aggregate_share
 
         # Negate s_i if Y is odd
-        if self.public_key.y % 2 != 0:
+        if public_key.y is None:
+            raise ValueError("Public key is the point at infinity.")
+        if public_key.y % 2 != parity:
             aggregate_share = Q - aggregate_share
 
         # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
