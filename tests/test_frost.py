@@ -5,7 +5,6 @@ from frost import Point, Participant, Aggregator, Q, G
 
 
 class Tests(unittest.TestCase):
-
     def setUp(self):
         self.p1 = Participant(index=1, threshold=2, participants=3)
         self.p2 = Participant(index=2, threshold=2, participants=3)
@@ -227,8 +226,20 @@ class Tests(unittest.TestCase):
         )
         message, nonce_commitment_pairs = agg.signing_inputs()
 
-        s1 = p1.sign(message, nonce_commitment_pairs, participant_indexes, bip32_tweak, taproot_tweak)
-        s2 = p2.sign(message, nonce_commitment_pairs, participant_indexes, bip32_tweak, taproot_tweak)
+        s1 = p1.sign(
+            message,
+            nonce_commitment_pairs,
+            participant_indexes,
+            bip32_tweak,
+            taproot_tweak,
+        )
+        s2 = p2.sign(
+            message,
+            nonce_commitment_pairs,
+            participant_indexes,
+            bip32_tweak,
+            taproot_tweak,
+        )
 
         # σ = (R, z)
         sig = agg.signature((s1, s2))
@@ -987,3 +998,19 @@ class Tests(unittest.TestCase):
             (p1.public_verification_share(), p2.public_verification_share()), (1, 2)
         )
         self.assertEqual(coefficient_commitments, derived_coefficient_commitments)
+
+    def test_derive_shared_secret(self):
+        p1 = self.p1
+        p2 = self.p2
+
+        alice_private_key = secrets.randbits(256) % Q
+        alice_public_key = alice_private_key * G
+
+        shared_secret_share_1 = p1.derive_shared_secret_share(alice_public_key, (2,))
+        shared_secret_share_2 = p2.derive_shared_secret_share(alice_public_key, (1,))
+
+        shared_secret = Aggregator.derive_shared_secret(
+            (shared_secret_share_1, shared_secret_share_2)
+        )
+
+        self.assertEqual(shared_secret, alice_private_key * p1.public_key)

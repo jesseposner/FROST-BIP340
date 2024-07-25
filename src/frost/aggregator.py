@@ -198,6 +198,25 @@ class Aggregator:
 
         return int.from_bytes(challenge_hash_bytes, "big") % Q
 
+    @classmethod
+    def derive_shared_secret(cls, shared_secret_shares: Tuple[Point, ...]) -> Point:
+        """
+        Derive the shared secret from the aggregated shared secret shares.
+
+        Parameters:
+        shared_secret_shares (Tuple[Point, ...]): Tuple of shared secret shares
+        from all participating members.
+
+        Returns:
+        Point: The derived shared secret as a point on the elliptic curve.
+        """
+        # K = ∑ K_i, i ∈ S
+        shared_secret = Point()
+        for shared_secret_share in shared_secret_shares:
+            shared_secret += shared_secret_share
+
+        return shared_secret
+
     def signing_inputs(self) -> Tuple[bytes, Tuple[Tuple[Point, Point], ...]]:
         """
         Returns the signing inputs to be used by the signers.

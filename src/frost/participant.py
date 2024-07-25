@@ -960,3 +960,39 @@ class Participant:
         coefficients = A_inv.mult_point_matrix(Y)
 
         return tuple(coeff[0] for coeff in coefficients)
+
+    def derive_shared_secret_share(
+        self, public_key: Point, participant_indexes: Tuple[int, ...]
+    ) -> Point:
+        """
+        Derives a shared secret share using a public key and participant
+        indexes.
+
+        This method calculates a shared secret share by applying a Lagrange
+        coefficient to the aggregate share and then multiplying the result by
+        the provided public key.
+
+        The share secret shares derived from this method can be aggregated with
+        Aggregator.derive_shared_secret.
+
+        Parameters:
+        public_key : Point
+            The public key used in the derivation of the shared secret share.
+        participant_indexes : Tuple[int, ...]
+            A tuple containing the indexes of the participants involved in the
+        secret sharing scheme.
+
+        Returns:
+        Point
+            The derived shared secret share.
+
+        Raises:
+        ValueError
+            If the aggregate share has not been initialized.
+        """
+        if self.aggregate_share is None:
+            raise ValueError("Aggregate share has not been initialized.")
+
+        lagrange_coefficient = self._lagrange_coefficient(participant_indexes)
+
+        return (lagrange_coefficient * self.aggregate_share) * public_key
