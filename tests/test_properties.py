@@ -9,6 +9,7 @@ Use @settings(max_examples=10, deadline=None) for these.
 
 import itertools
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -95,3 +96,35 @@ def test_signature_validity(data):
     if pk.y % 2 != 0:
         pk = -pk
     assert (z * G) + (Q - c) * pk == R
+
+
+@settings(max_examples=10, deadline=None)
+@given(data=st.data())
+def test_share_verification_catches_corruption(data):
+    """An invalid signature share is detected before aggregation."""
+    participants, t, n = data.draw(dkg_group(max_n=4))
+    msg = data.draw(messages)
+
+    for p in participants:
+        p.generate_nonce_pair()
+    all_nonce_pairs = tuple(p.nonce_commitment_pair for p in participants)
+
+    all_combos = list(itertools.combinations(range(n), t))
+    combo = all_combos[data.draw(st.integers(min_value=0, max_value=len(all_combos) - 1))]
+    signers = [participants[i] for i in combo]
+    signer_indexes = tuple(p.index for p in signers)
+
+    shares = list(p.sign(msg, all_nonce_pairs, signer_indexes) for p in signers)
+
+    # Corrupt the first share
+    shares[0] = (shares[0] + 1) % Q
+
+    agg = Aggregator(
+        signers[0].public_key,
+        msg,
+        all_nonce_pairs,
+        signer_indexes,
+        group_commitments=participants[0].group_commitments,
+    )
+    with pytest.raises(ValueError, match="Invalid signature share"):
+        agg.signature(tuple(shares))
