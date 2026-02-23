@@ -50,5 +50,8 @@ ignore = [
     "RUF003",  # ambiguous unicode: intentional math notation (α, σ, ℤ)
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.coverage.run]
 source = ["src"]
