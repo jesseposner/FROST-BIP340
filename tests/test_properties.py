@@ -128,3 +128,32 @@ def test_share_verification_catches_corruption(data):
     )
     with pytest.raises(ValueError, match="Invalid signature share"):
         agg.signature(tuple(shares))
+
+
+@settings(max_examples=10, deadline=None)
+@given(data=st.data())
+def test_signing_order_irrelevant(data):
+    """The order of signature shares doesn't affect the final signature."""
+    participants, t, n = data.draw(dkg_group(max_n=4))
+    msg = data.draw(messages)
+
+    for p in participants:
+        p.generate_nonce_pair()
+    all_nonce_pairs = tuple(p.nonce_commitment_pair for p in participants)
+
+    all_combos = list(itertools.combinations(range(n), t))
+    combo = all_combos[data.draw(st.integers(min_value=0, max_value=len(all_combos) - 1))]
+    signers = [participants[i] for i in combo]
+    signer_indexes = tuple(p.index for p in signers)
+
+    shares = tuple(p.sign(msg, all_nonce_pairs, signer_indexes) for p in signers)
+
+    # Aggregate in original order
+    agg1 = Aggregator(signers[0].public_key, msg, all_nonce_pairs, signer_indexes)
+    sig1 = agg1.signature(shares)
+
+    # Aggregate in reversed order
+    agg2 = Aggregator(signers[0].public_key, msg, all_nonce_pairs, signer_indexes)
+    sig2 = agg2.signature(tuple(reversed(shares)))
+
+    assert sig1 == sig2
