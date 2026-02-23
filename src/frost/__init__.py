@@ -31,3 +31,4 @@ from .point import G as G
 from .point import P as P
 from .point import Point as Point
 from .point import Q as Q
+from .scalar import Scalar as Scalar

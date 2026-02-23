@@ -2,7 +2,7 @@
 
 import pytest
 
-from frost import Q
+from frost import G, Q
 from frost.scalar import Scalar
 
 
@@ -68,6 +68,10 @@ class TestArithmetic:
         # Scalar * int returns NotImplemented, which Python turns into TypeError
         with pytest.raises(TypeError):
             Scalar(3) * 5
+
+    def test_scalar_times_point(self):
+        # Scalar * Point falls through to Point.__rmul__ via NotImplemented
+        assert Scalar(5) * G == 5 * G
 
 
 class TestInverse:

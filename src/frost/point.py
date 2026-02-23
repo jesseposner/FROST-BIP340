@@ -10,7 +10,12 @@ such as point doubling, scalar multiplication, and checks for the point at infin
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .constants import G_x, G_y, P, Q
+
+if TYPE_CHECKING:
+    from .scalar import Scalar
 
 
 class Point:
@@ -273,17 +278,24 @@ class Point:
 
         return self + -other
 
-    def __rmul__(self, scalar: int) -> Point:
+    def __rmul__(self, scalar: int | Scalar) -> Point:
         """Scalar multiplication via double-and-add: scalar * Point.
 
         Only scalar * Point (e.g. 5 * G) is supported, not Point * scalar,
         matching the mathematical convention for scalar multiplication.
 
+        Accepts both int and Scalar. When Scalar.__mul__ encounters a Point,
+        it returns NotImplemented, so Python falls through to Point.__rmul__.
+
         Note: for production use, a precomputed table speeds this up ~2x
         for fixed-base multiplication. See secp256k1lab's FastGEMul.
         """
+        from .scalar import Scalar
+
+        if isinstance(scalar, Scalar):
+            scalar = int(scalar)
         if not isinstance(scalar, int):
-            raise ValueError("The scalar must be an integer.")
+            raise ValueError("The scalar must be an integer or Scalar.")
         # Reduce modulo the curve order so that Q * P = identity
         scalar = scalar % Q
 
