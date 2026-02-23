@@ -15,6 +15,7 @@ from hashlib import sha256
 
 from .aggregator import Aggregator
 from .constants import Q
+from .lagrange import lagrange_coefficient as _lagrange_coeff
 from .matrix import Matrix
 from .point import G, Point
 
@@ -449,6 +450,9 @@ class Participant:
         """
         Calculate the Lagrange coefficient for this participant relative to other participants.
 
+        Delegates to the standalone lagrange_coefficient function and converts
+        the result back to int for backward compatibility with existing callers.
+
         Parameters:
         participant_indexes (Tuple[int, ...]): A tuple of indices of other
         participants involved in the calculation.
@@ -463,24 +467,9 @@ class Participant:
         Raises:
         ValueError: If duplicate indices are found.
         """
-
-        if len(participant_indexes) != len(set(participant_indexes)):
-            raise ValueError("Participant indexes must be unique.")
-
         if participant_index is None:
             participant_index = self.index
-
-        # λ_i(x) = ∏ (x - p_j)/(p_i - p_j), 1 ≤ j ≤ α, j ≠ i
-        numerator = 1
-        denominator = 1
-        for index in participant_indexes:
-            if index == participant_index:
-                continue
-            numerator = numerator * (x - index)
-            denominator = denominator * (participant_index - index)
-        # Modular inverse via Fermat's little theorem: a^(Q-2) = a^(-1) (mod Q)
-        # This converts the fraction numerator/denominator into a scalar field element.
-        return (numerator * pow(denominator, Q - 2, Q)) % Q
+        return int(_lagrange_coeff(participant_indexes, participant_index, x))
 
     def verify_share(
         self, share: int, coefficient_commitments: tuple[Point, ...], threshold: int
