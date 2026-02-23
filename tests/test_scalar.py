@@ -1,9 +1,11 @@
 """Tests for the Scalar class (Z_Q arithmetic)."""
 
 import pytest
+from hypothesis import given, settings
 
 from frost import G, Q
 from frost.scalar import Scalar
+from tests.strategies import scalars, scalars_with_zero
 
 
 class TestConstruction:
@@ -146,3 +148,47 @@ class TestRandom:
     def test_random_not_all_same(self):
         samples = [Scalar.random().value for _ in range(5)]
         assert len(set(samples)) > 1
+
+
+class TestPropertyBased:
+    @given(a=scalars_with_zero, b=scalars_with_zero, c=scalars_with_zero)
+    def test_addition_associative(self, a, b, c):
+        assert (a + b) + c == a + (b + c)
+
+    @given(a=scalars_with_zero, b=scalars_with_zero)
+    def test_addition_commutative(self, a, b):
+        assert a + b == b + a
+
+    @given(a=scalars_with_zero)
+    def test_additive_identity(self, a):
+        assert a + Scalar(0) == a
+
+    @given(a=scalars_with_zero)
+    def test_additive_inverse(self, a):
+        assert a + (-a) == Scalar(0)
+
+    @given(a=scalars, b=scalars)
+    def test_multiplication_commutative(self, a, b):
+        assert a * b == b * a
+
+    @given(a=scalars, b=scalars, c=scalars)
+    def test_multiplication_associative(self, a, b, c):
+        assert (a * b) * c == a * (b * c)
+
+    @given(a=scalars)
+    def test_multiplicative_identity(self, a):
+        assert a * Scalar(1) == a
+
+    @given(a=scalars)
+    def test_multiplicative_inverse(self, a):
+        assert a * a.inv() == Scalar(1)
+
+    @given(a=scalars, b=scalars, c=scalars)
+    def test_distributive(self, a, b, c):
+        assert a * (b + c) == (a * b) + (a * c)
+
+    @given(s=scalars)
+    @settings(deadline=None)
+    def test_scalar_point_consistency(self, s):
+        """Scalar * G via Scalar matches int * G."""
+        assert s * G == int(s) * G
