@@ -14,6 +14,7 @@ from hashlib import sha256
 
 from .constants import Q
 from .point import G, Point
+from .tagged_hash import tagged_hash
 
 
 class Aggregator:
@@ -184,16 +185,11 @@ class Aggregator:
         int: The resulting challenge hash value as an integer, reduced by modulo Q.
         """
         # c = H_2(R, Y, m)
-        tag_hash = sha256(b"BIP0340/challenge").digest()
-        challenge_hash = sha256()
-        challenge_hash.update(tag_hash)
-        challenge_hash.update(tag_hash)
-        challenge_hash.update(nonce_commitment.to_bytes_xonly())
-        challenge_hash.update(public_key.to_bytes_xonly())
-        challenge_hash.update(message)
-        challenge_hash_bytes = challenge_hash.digest()
-
-        return int.from_bytes(challenge_hash_bytes, "big") % Q
+        challenge_bytes = tagged_hash(
+            "BIP0340/challenge",
+            nonce_commitment.to_bytes_xonly() + public_key.to_bytes_xonly() + message,
+        )
+        return int.from_bytes(challenge_bytes, "big") % Q
 
     @classmethod
     def derive_shared_secret(cls, shared_secret_shares: tuple[Point, ...]) -> Point:
