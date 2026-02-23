@@ -157,3 +157,41 @@ def test_signing_order_irrelevant(data):
     sig2 = agg2.signature(tuple(reversed(shares)))
 
     assert sig1 == sig2
+
+
+@settings(max_examples=5, deadline=None)
+@given(data=st.data())
+def test_repair_restores_share(data):
+    """A repaired share is identical to the original."""
+    participants, t, n = data.draw(dkg_group(max_n=4))
+    if n - 1 < t:
+        return  # Not enough helpers for repair (need t non-victim participants)
+
+    # Pick a victim
+    victim_idx = data.draw(st.integers(min_value=0, max_value=n - 1))
+    victim = participants[victim_idx]
+    original_share = victim.aggregate_share
+
+    # Pick t helpers (excluding victim)
+    others = [p for p in participants if p.index != victim.index]
+    helpers = others[:t]  # First t non-victim participants
+
+    # Each helper generates repair shares
+    for helper in helpers:
+        other_helper_indexes = tuple(h.index for h in helpers if h.index != helper.index)
+        helper.generate_repair_shares(other_helper_indexes, victim.index)
+
+    # Each helper aggregates repair shares from other helpers
+    for helper in helpers:
+        other_shares = tuple(
+            other.get_repair_share(helper.index)
+            for other in helpers
+            if other.index != helper.index
+        )
+        helper.aggregate_repair_shares(other_shares)
+
+    # Victim reconstructs
+    victim.aggregate_share = None  # Simulate loss
+    victim.repair_share(tuple(h.aggregate_repair_share for h in helpers))
+
+    assert victim.aggregate_share == original_share
