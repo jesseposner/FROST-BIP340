@@ -323,7 +323,7 @@ class Participant:
         """Aggregate shares to increase the threshold. See threshold.increase_threshold."""
         if not self.shares:
             raise ValueError("Participant's shares have not been initialized.")
-        if not self.aggregate_share:
+        if self.aggregate_share is None:
             raise ValueError("Participant's aggregate share has not been initialized.")
         self.aggregate_share = int(
             threshold.increase_threshold(
