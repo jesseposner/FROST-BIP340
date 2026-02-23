@@ -60,7 +60,7 @@ class Point:
         return hash((self._x, self._y))
 
     @classmethod
-    def sec_deserialize(cls, hex_public_key: str) -> Point:
+    def from_bytes_compressed(cls, hex_public_key: str) -> Point:
         """
         Deserialize a SEC 1 compressed hex-encoded public key to a Point object.
 
@@ -101,7 +101,7 @@ class Point:
 
         return cls(x, y)
 
-    def sec_serialize(self) -> bytes:
+    def to_bytes_compressed(self) -> bytes:
         """
         Serialize the point to its SEC 1 compressed format.
 
@@ -119,7 +119,7 @@ class Point:
         return prefix + self.x.to_bytes(32, "big")
 
     @classmethod
-    def xonly_deserialize(cls, hex_public_key: str) -> Point:
+    def from_bytes_xonly(cls, hex_public_key: str) -> Point:
         """
         Deserialize a point from its x-only hex-encoded representation.
 
@@ -151,7 +151,7 @@ class Point:
 
         return cls(x, y)
 
-    def xonly_serialize(self) -> bytes:
+    def to_bytes_xonly(self) -> bytes:
         """
         Serialize the x-coordinate of the point to a 32-byte big-endian format.
 

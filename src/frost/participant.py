@@ -157,9 +157,9 @@ class Participant:
         # g^a_i_0
         secret = self.coefficients[0]
         secret_commitment = secret * G
-        secret_commitment_bytes = secret_commitment.sec_serialize()
+        secret_commitment_bytes = secret_commitment.to_bytes_compressed()
         # R_i
-        nonce_commitment_bytes = nonce_commitment.sec_serialize()
+        nonce_commitment_bytes = nonce_commitment.to_bytes_compressed()
         # c_i = H(i, 𝚽, g^a_i_0, R_i)
         challenge_hash = sha256()
         challenge_hash.update(index_byte)
@@ -216,8 +216,8 @@ class Participant:
         # 𝚽
         context_bytes = self.CONTEXT
         # g^a_l_0
-        secret_commitment_bytes = secret_commitment.sec_serialize()
-        nonce_commitment_bytes = nonce_commitment.sec_serialize()
+        secret_commitment_bytes = secret_commitment.to_bytes_compressed()
+        nonce_commitment_bytes = nonce_commitment.to_bytes_compressed()
         # c_l = H(l, 𝚽, g^a_l_0, R_l)
         challenge_input = (
             index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes

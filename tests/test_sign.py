@@ -30,7 +30,7 @@ def test_sign(keygen_group):
     # σ = (R, z)
     sig = agg.signature((s1, s2))
     sig_bytes = bytes.fromhex(sig)
-    nonce_commitment = Point.xonly_deserialize(sig_bytes[0:32].hex())
+    nonce_commitment = Point.from_bytes_xonly(sig_bytes[0:32].hex())
     z = int.from_bytes(sig_bytes[32:64], "big")
 
     # verify: c = H_2(R, Y, m)
@@ -86,7 +86,7 @@ def test_tweaking(keygen_group):
     # σ = (R, z)
     sig = agg.signature((s1, s2))
     sig_bytes = bytes.fromhex(sig)
-    nonce_commitment = Point.xonly_deserialize(sig_bytes[0:32].hex())
+    nonce_commitment = Point.from_bytes_xonly(sig_bytes[0:32].hex())
     z = int.from_bytes(sig_bytes[32:64], "big")
 
     # verify

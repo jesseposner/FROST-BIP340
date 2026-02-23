@@ -157,7 +157,7 @@ class Aggregator:
                 raise ValueError(f"Index {idx} is out of range for nonce commitments.")
             participant_pair = nonce_commitment_pairs[idx - 1]
             participant_pair_bytes = b"".join(
-                [commitment.sec_serialize() for commitment in participant_pair]
+                [commitment.to_bytes_compressed() for commitment in participant_pair]
             )
             nonce_commitment_pairs_bytes.append(participant_pair_bytes)
 
@@ -188,8 +188,8 @@ class Aggregator:
         challenge_hash = sha256()
         challenge_hash.update(tag_hash)
         challenge_hash.update(tag_hash)
-        challenge_hash.update(nonce_commitment.xonly_serialize())
-        challenge_hash.update(public_key.xonly_serialize())
+        challenge_hash.update(nonce_commitment.to_bytes_xonly())
+        challenge_hash.update(public_key.to_bytes_xonly())
         challenge_hash.update(message)
         challenge_hash_bytes = challenge_hash.digest()
 
@@ -242,7 +242,7 @@ class Aggregator:
         group_commitment = self.group_commitment(
             self.message, self.nonce_commitment_pairs, self.participant_indexes
         )
-        nonce_commitment = group_commitment.xonly_serialize()
+        nonce_commitment = group_commitment.to_bytes_xonly()
 
         # TODO: verify each signature share
         z = sum(signature_shares) % Q
