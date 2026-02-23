@@ -97,7 +97,7 @@ need to become 3-of-3 (stricter security) or 2-of-2 (a participant is leaving).
 ### Threshold Increase
 
 To raise the threshold from t to t', participants jointly generate new
-polynomials of degree (t' - t - 1) and distribute evaluations, just like a
+polynomials of degree (t' - 2) and distribute evaluations, just like a
 mini-DKG. Each participant adjusts their aggregate share by incorporating the
 new evaluations:
 

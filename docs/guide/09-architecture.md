@@ -36,8 +36,10 @@ operation delegates to the protocol modules:
 ```python
 # Participant.init_keygen() calls:
 polynomial.generate_polynomial()
-keygen.compute_coefficient_commitments()
 keygen.compute_proof_of_knowledge()
+keygen.compute_coefficient_commitments()
+
+# Participant.generate_shares() calls:
 keygen.generate_shares()
 ```
 
