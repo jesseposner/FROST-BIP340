@@ -12,10 +12,10 @@ import itertools
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from frost import G, Point
+from frost import Aggregator, G, Point, Q
 from frost.lagrange import lagrange_coefficient
 from frost.scalar import Scalar
-from tests.strategies import dkg_group, points
+from tests.strategies import dkg_group, messages, points
 
 
 @given(p=points)
@@ -61,3 +61,37 @@ def test_threshold_invariant(data):
             lam = lagrange_coefficient(indexes, p.index)
             secret = secret + lam * Scalar(p.aggregate_share)
         assert int(secret) * G == pk
+
+
+@settings(max_examples=10, deadline=None)
+@given(data=st.data())
+def test_signature_validity(data):
+    """Aggregated threshold signature verifies under group public key."""
+    participants, t, n = data.draw(dkg_group(max_n=4))
+    msg = data.draw(messages)
+
+    # Generate nonce pairs for all participants (Aggregator indexes by participant number)
+    for p in participants:
+        p.generate_nonce_pair()
+    all_nonce_pairs = tuple(p.nonce_commitment_pair for p in participants)
+
+    # Pick a t-sized signer subset
+    all_combos = list(itertools.combinations(range(n), t))
+    combo = all_combos[data.draw(st.integers(min_value=0, max_value=len(all_combos) - 1))]
+    signers = [participants[i] for i in combo]
+    signer_indexes = tuple(p.index for p in signers)
+
+    shares = tuple(p.sign(msg, all_nonce_pairs, signer_indexes) for p in signers)
+
+    agg = Aggregator(signers[0].public_key, msg, all_nonce_pairs, signer_indexes)
+    sig = agg.signature(shares)
+
+    # BIP340 verification
+    sig_bytes = bytes.fromhex(sig)
+    R = Point.from_bytes_xonly(sig_bytes[:32].hex())
+    z = int.from_bytes(sig_bytes[32:], "big")
+    pk = signers[0].public_key
+    c = Aggregator.challenge_hash(R, pk, msg)
+    if pk.y % 2 != 0:
+        pk = -pk
+    assert (z * G) + (Q - c) * pk == R
