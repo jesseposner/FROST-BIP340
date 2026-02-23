@@ -14,23 +14,50 @@ from .constants import G_x, G_y, P, Q
 
 
 class Point:
-    """Class representing an elliptic curve point."""
+    """Immutable point on the secp256k1 elliptic curve.
+
+    Coordinates are read-only after construction. The point at infinity
+    (identity element for curve addition) is represented by x = y = None.
+    """
 
     def __init__(self, x: int | None = None, y: int | None = None):
-        """
-        Initialize a point on an elliptic curve.
+        """Initialize a point on the secp256k1 curve.
 
         Parameters:
-        x (Optional[int], optional): The x-coordinate of the point.
-            Defaults to None, representing the point at infinity.
-        y (Optional[int], optional): The y-coordinate of the point.
-            Defaults to None, also representing the point at infinity.
+        x: The x-coordinate, or None for the point at infinity.
+        y: The y-coordinate, or None for the point at infinity.
 
-        The point at infinity serves as the identity element in elliptic curve addition.
+        Raises:
+        ValueError: If only one coordinate is None, or if the point
+            is not on the curve y^2 = x^3 + 7 (mod P).
         """
+        if x is None and y is None:
+            # Point at infinity (identity element for elliptic curve addition)
+            self._x = None
+            self._y = None
+            return
+        if x is None or y is None:
+            raise ValueError("Both x and y must be provided, or both must be None.")
+        # Validate point is on the curve: y^2 = x^3 + 7 (mod P)
+        if (y * y) % P != (pow(x, 3, P) + 7) % P:
+            raise ValueError("Point is not on the secp256k1 curve.")
+        self._x = x % P
+        self._y = y % P
 
-        self.x = x
-        self.y = y
+    @property
+    def x(self) -> int | None:
+        """The x-coordinate, or None for the point at infinity."""
+        return self._x
+
+    @property
+    def y(self) -> int | None:
+        """The y-coordinate, or None for the point at infinity."""
+        return self._y
+
+    def __hash__(self) -> int:
+        if self._x is None:
+            return 0
+        return hash((self._x, self._y))
 
     @classmethod
     def sec_deserialize(cls, hex_public_key: str) -> Point:
