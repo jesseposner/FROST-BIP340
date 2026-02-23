@@ -18,6 +18,13 @@ from .constants import Q
 from .lagrange import lagrange_coefficient as _lagrange_coeff
 from .matrix import Matrix
 from .point import G, Point
+from .polynomial import (
+    evaluate_polynomial,
+    generate_polynomial,
+    generate_refresh_polynomial,
+    generate_threshold_increase_polynomial,
+)
+from .scalar import Scalar
 
 
 class Participant:
@@ -114,10 +121,7 @@ class Participant:
 
     def _generate_polynomial(self) -> None:
         """Generate random polynomial coefficients."""
-        # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
-        # Sample uniformly from the scalar field: 256 random bits reduced
-        # modulo Q (the curve order). This gives scalars in [0, Q-1].
-        self.coefficients = tuple(secrets.randbits(256) % Q for _ in range(self.threshold))
+        self.coefficients = tuple(int(c) for c in generate_polynomial(self.threshold))
 
     def _generate_refresh_polynomial(self) -> None:
         """
@@ -125,11 +129,7 @@ class Participant:
         sharing refresh, where the first coefficient is set to 0 to ensure the
         refresh does not change the shared secret.
         """
-        # Generate the rest of the coefficients randomly, except the first one which is set to 0.
-        # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
-        # a_i_0 is set to 0 explicitly.
-        rest = tuple(secrets.randbits(256) % Q for _ in range(self.threshold - 1))
-        self.coefficients = (0, *rest)
+        self.coefficients = tuple(int(c) for c in generate_refresh_polynomial(self.threshold))
 
     def _generate_threshold_increase_polynomial(self, new_threshold: int) -> None:
         """
@@ -140,7 +140,9 @@ class Participant:
         new_threshold (int): The new threshold value which must be an integer greater than the
         current threshold.
         """
-        self.coefficients = tuple(secrets.randbits(256) % Q for _ in range(new_threshold - 1))
+        self.coefficients = tuple(
+            int(c) for c in generate_threshold_increase_polynomial(new_threshold)
+        )
 
     def _compute_proof_of_knowledge(self) -> None:
         """
@@ -422,6 +424,9 @@ class Participant:
         """
         Evaluate the polynomial at a given point x using Horner's method.
 
+        Delegates to the standalone evaluate_polynomial function and converts
+        the result back to int for backward compatibility with existing callers.
+
         Parameters:
         x (int): The point at which the polynomial is evaluated.
 
@@ -435,11 +440,8 @@ class Participant:
             raise ValueError("The value of x must be an integer.")
         if not self.coefficients:
             raise ValueError("Polynomial coefficients must be initialized.")
-
-        y = 0
-        for coefficient in reversed(self.coefficients):
-            y = (y * x + coefficient) % Q
-        return y
+        scalar_coeffs = tuple(Scalar(c) for c in self.coefficients)
+        return int(evaluate_polynomial(scalar_coeffs, x))
 
     def _lagrange_coefficient(
         self,
