@@ -60,46 +60,58 @@ class Point:
         return hash((self._x, self._y))
 
     @classmethod
-    def from_bytes_compressed(cls, hex_public_key: str) -> Point:
-        """
-        Deserialize a SEC 1 compressed hex-encoded public key to a Point object.
+    def lift_x(cls, x: int) -> Point:
+        """Compute the point with the given x-coordinate and even y (BIP340 convention).
 
-        Parameters:
-        hex_public_key (str): Hexadecimal string of 33 bytes representing the
-            compressed public key.
-
-        Returns:
-        Point: An instance of Point corresponding to the deserialized public key.
+        This is the standard BIP340 lift_x operation: given an x-coordinate,
+        compute y such that y^2 = x^3 + 7 (mod P), choosing the even y.
 
         Raises:
-        ValueError: If the input is not a valid hex string, does not represent
-        a valid point, or has incorrect length.
+        ValueError: If no curve point has the given x-coordinate.
         """
-        try:
-            hex_bytes = bytes.fromhex(hex_public_key)
-            if len(hex_bytes) != 33:
-                raise ValueError(
-                    "Input must be exactly 33 bytes long for SEC 1 compressed format."
-                )
-            is_even = hex_bytes[0] == 2
-            x_bytes = hex_bytes[1:]
-            x = int.from_bytes(x_bytes, "big")
-            y_squared = (pow(x, 3, P) + 7) % P
-            y = pow(y_squared, (P + 1) // 4, P)
-
-            if y % 2 == 0:
-                even_y = y
-                odd_y = (P - y) % P
-            else:
-                even_y = (P - y) % P
-                odd_y = y
-            y = even_y if is_even else odd_y
-        except Exception as e:
-            raise ValueError(
-                "Invalid hex input or unable to compute point from x-coordinate."
-            ) from e
-
+        y_squared = (pow(x, 3, P) + 7) % P
+        # Tonelli-Shanks for p = 3 (mod 4): sqrt(a) = a^((p+1)/4) (mod p)
+        y = pow(y_squared, (P + 1) // 4, P)
+        # Verify the square root is valid (not all x values have a point on the curve)
+        if y * y % P != y_squared:
+            raise ValueError(f"No point on the curve has x = {x}.")
+        # BIP340 convention: always choose the even y-coordinate
+        if y % 2 != 0:
+            y = P - y
         return cls(x, y)
+
+    def has_even_y(self) -> bool:
+        """Whether this point has an even y-coordinate (BIP340 convention).
+
+        Raises:
+        ValueError: If the point is at infinity.
+        """
+        if self._y is None:
+            raise ValueError("Point at infinity has no y-coordinate.")
+        return self._y % 2 == 0
+
+    @classmethod
+    def from_bytes_compressed(cls, hex_public_key: str) -> Point:
+        """Deserialize a SEC 1 compressed hex-encoded public key to a Point.
+
+        Parameters:
+        hex_public_key: Hexadecimal string of 33 bytes (prefix + x-coordinate).
+
+        Raises:
+        ValueError: If the input is invalid or does not represent a curve point.
+        """
+        hex_bytes = bytes.fromhex(hex_public_key)
+        if len(hex_bytes) != 33:
+            raise ValueError("Input must be exactly 33 bytes long for SEC 1 compressed format.")
+        prefix = hex_bytes[0]
+        if prefix not in (2, 3):
+            raise ValueError("Invalid prefix byte: must be 0x02 (even y) or 0x03 (odd y).")
+        x = int.from_bytes(hex_bytes[1:], "big")
+        # lift_x gives us even-y point; negate if prefix indicates odd y
+        point = cls.lift_x(x)
+        if prefix == 3:
+            point = -point
+        return point
 
     def to_bytes_compressed(self) -> bytes:
         """
@@ -120,36 +132,21 @@ class Point:
 
     @classmethod
     def from_bytes_xonly(cls, hex_public_key: str) -> Point:
-        """
-        Deserialize a point from its x-only hex-encoded representation.
+        """Deserialize a point from its x-only hex-encoded representation (BIP340).
+
+        Always returns the point with even y (BIP340 convention).
 
         Parameters:
-        hex_public_key (str): The hexadecimal string of 32 bytes representing
-        the x-coordinate of the point.
-
-        Returns:
-        Point: A Point object corresponding to the deserialized x-coordinate.
+        hex_public_key: Hexadecimal string of 32 bytes (x-coordinate only).
 
         Raises:
-        ValueError: If the input is not a valid hex string, does not represent
-        a valid point, or has incorrect length.
+        ValueError: If the input is invalid or does not represent a curve point.
         """
-        try:
-            hex_bytes = bytes.fromhex(hex_public_key)
-            if len(hex_bytes) != 32:
-                raise ValueError("Input must be exactly 32 bytes long for x-only format.")
-            x = int.from_bytes(hex_bytes, "big")
-            y_squared = (pow(x, 3, P) + 7) % P
-            y = pow(y_squared, (P + 1) // 4, P)
-
-            if y % 2 != 0:
-                y = (P - y) % P
-        except ValueError as e:
-            raise ValueError(
-                "Invalid hex input or unable to compute point from x-coordinate."
-            ) from e
-
-        return cls(x, y)
+        hex_bytes = bytes.fromhex(hex_public_key)
+        if len(hex_bytes) != 32:
+            raise ValueError("Input must be exactly 32 bytes long for x-only format.")
+        x = int.from_bytes(hex_bytes, "big")
+        return cls.lift_x(x)
 
     def to_bytes_xonly(self) -> bytes:
         """
