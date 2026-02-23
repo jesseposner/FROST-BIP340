@@ -279,7 +279,9 @@ class Participant:
         Raises:
         IndexError: If the participant_index is out of the range of the repair shares.
         """
-        # Check if the index is in the set of repair participants
+        # Check if repair participants and shares have been initialized
+        if self.repair_participants is None or self.repair_shares is None:
+            raise ValueError("Repair participants or shares have not been initialized.")
         if participant_index not in self.repair_participants:
             raise IndexError("Participant index does not match the initial set.")
 

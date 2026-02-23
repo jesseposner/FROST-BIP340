@@ -22,6 +22,7 @@ dev = [
     "pytest-cov>=6.0",
     "hypothesis>=6.100",
     "ruff>=0.9",
+    "ty>=0.0.1a7",
 ]
 
 [build-system]
