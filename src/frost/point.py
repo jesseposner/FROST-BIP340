@@ -296,6 +296,10 @@ class Point:
         # Reduce modulo the curve order so that Q·P = identity
         scalar = scalar % Q
 
+        # Fast path: use precomputed table for generator point multiplication
+        if self.x == G.x and self.y == G.y:
+            return _fast_ge_mul(scalar)
+
         # Double-and-add scanning bits from low to high:
         # for each bit position i, if bit i is set, add 2^i · self to result.
         p = self
@@ -334,3 +338,45 @@ class Point:
 
 # The generator point G
 G: Point = Point(G_x, G_y)
+
+
+_G_TABLE: tuple[Point, ...] | None = None
+
+
+def _get_g_table() -> tuple[Point, ...]:
+    """Precomputed table of 2^i · G for i = 0..255.
+
+    Instead of computing doubling chains from scratch each time, we precompute
+    all 256 doublings of G. This trades ~8KB of memory for eliminating the
+    doubling step entirely during generator-point multiplication.
+
+    Production implementations go further: windowed methods (process multiple
+    bits at once), projective/Jacobian coordinates (avoid modular inversion
+    per addition), and GLV endomorphism (secp256k1-specific decomposition).
+    Those optimizations are beyond our educational scope but explain the
+    ~1000x speed gap between this implementation and libsecp256k1.
+    """
+    global _G_TABLE
+    if _G_TABLE is None:
+        table = []
+        p = G
+        for _ in range(256):
+            table.append(p)
+            p = p._dbl()
+        _G_TABLE = tuple(table)
+    return _G_TABLE
+
+
+def _fast_ge_mul(scalar: int) -> Point:
+    """Scalar multiplication k·G using the precomputed table.
+
+    For each bit i that is set in the scalar, add the precomputed 2^i · G.
+    No doubling needed since the table already contains all doublings.
+    """
+    scalar = scalar % Q
+    table = _get_g_table()
+    result = Point()
+    for i in range(256):
+        if scalar & (1 << i):
+            result = result + table[i]
+    return result
