@@ -209,19 +209,14 @@ class Point:
         return self.__class__(self.x, P - self.y)
 
     def _dbl(self) -> Point:
-        """
-        Double the point on the elliptic curve. If the point is at infinity or the y-coordinate
-        is zero (implying the point is of order 2), the result is the point at infinity.
-
-        Returns:
-        Point: A new Point that is the result of doubling the current point.
-        """
+        """Double the point using the tangent line formula."""
         if self.x is None or self.y is None or self.y == 0:
-            # Return the point at infinity
             return self.__class__()
 
         x = self.x
         y = self.y
+        # Slope of tangent: s = 3x^2 / 2y
+        # Modular inverse via Fermat's little theorem: a^(p-2) = a^(-1) (mod p)
         s = (3 * x * x * pow(2 * y, P - 2, P)) % P
         sum_x = (s * s - 2 * x) % P
         sum_y = (s * (x - sum_x) - y) % P
@@ -252,6 +247,8 @@ class Point:
             return self
         if self.x == other.x and self.y != other.y:
             return self.__class__()  # Point at infinity
+        # Slope of secant line: s = (y2 - y1) / (x2 - x1)
+        # Modular inverse via Fermat's little theorem: a^(p-2) = a^(-1) (mod p)
         s = ((other.y - self.y) * pow(other.x - self.x, P - 2, P)) % P
         sum_x = (s * s - self.x - other.x) % P
         sum_y = (s * (self.x - sum_x) - self.y) % P
@@ -277,25 +274,21 @@ class Point:
         return self + -other
 
     def __rmul__(self, scalar: int) -> Point:
+        """Scalar multiplication via double-and-add: scalar * Point.
+
+        Only scalar * Point (e.g. 5 * G) is supported, not Point * scalar,
+        matching the mathematical convention for scalar multiplication.
+
+        Note: for production use, a precomputed table speeds this up ~2x
+        for fixed-base multiplication. See secp256k1lab's FastGEMul.
         """
-        Multiply this point by an integer scalar using the double-and-add
-        method, reduced modulo the curve order.
-
-        Parameters:
-        scalar (int): The scalar to multiply this point by.
-
-        Returns:
-        Point: The result of the scalar multiplication.
-
-        Raises:
-        ValueError: If the scalar is not an integer.
-        """
-        # Reduce scalar by the group order to ensure operation within the finite group
+        if not isinstance(scalar, int):
+            raise ValueError("The scalar must be an integer.")
+        # Reduce modulo the curve order so that Q * P = identity
         scalar = scalar % Q
 
-        if not isinstance(scalar, int):
-            raise ValueError("The scalar must be an integer")
-
+        # Double-and-add scanning bits from low to high:
+        # for each bit position i, if bit i is set, add 2^i * self to result.
         p = self
         r = self.__class__()
         i = 1
