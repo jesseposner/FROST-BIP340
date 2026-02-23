@@ -23,7 +23,7 @@ Vandermonde matrix from given indices.
 """
 
 from __future__ import annotations
-from typing import Tuple
+
 from .constants import Q
 from .point import Point
 
@@ -31,11 +31,11 @@ from .point import Point
 class Matrix:
     """Class representing a matrix."""
 
-    def __init__(self, matrix: Tuple[Tuple[int, ...], ...]):
+    def __init__(self, matrix: tuple[tuple[int, ...], ...]):
         self.matrix = matrix
 
     @staticmethod
-    def create_vandermonde(indices: Tuple[int, ...]) -> Matrix:
+    def create_vandermonde(indices: tuple[int, ...]) -> Matrix:
         """
         Create a Vandermonde matrix from a series of indices.
 
@@ -66,8 +66,7 @@ class Matrix:
             return self.matrix[0][0] % Q
         if len(self.matrix) == 2:
             return (
-                self.matrix[0][0] * self.matrix[1][1]
-                - self.matrix[0][1] * self.matrix[1][0]
+                self.matrix[0][0] * self.matrix[1][1] - self.matrix[0][1] * self.matrix[1][0]
             ) % Q
         det = 0
         for c in range(len(self.matrix)):
@@ -76,9 +75,7 @@ class Matrix:
             det %= Q
         return det
 
-    def mult_point_matrix(
-        self, Y: Tuple[Tuple[Point, ...], ...]
-    ) -> Tuple[Tuple[Point, ...], ...]:
+    def mult_point_matrix(self, Y: tuple[tuple[Point, ...], ...]) -> tuple[tuple[Point, ...], ...]:
         """
         Multiply this matrix by a matrix of Point objects, performing scalar
         multiplication and addition of Points.

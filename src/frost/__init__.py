@@ -24,7 +24,10 @@ share aggregation, and signature generation, all within the context of
 threshold cryptography.
 """
 
-from .point import Point, P, Q, G
-from .participant import Participant
-from .aggregator import Aggregator
-from .matrix import Matrix
+from .aggregator import Aggregator as Aggregator
+from .matrix import Matrix as Matrix
+from .participant import Participant as Participant
+from .point import G as G
+from .point import P as P
+from .point import Point as Point
+from .point import Q as Q

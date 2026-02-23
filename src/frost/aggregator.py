@@ -10,10 +10,10 @@ signature. It ensures that all components are correctly combined according to
 the FROST protocol.
 """
 
-from typing import Tuple, Optional
 from hashlib import sha256
-from .point import Point, G
+
 from .constants import Q
+from .point import G, Point
 
 
 class Aggregator:
@@ -23,10 +23,10 @@ class Aggregator:
         self,
         public_key: Point,
         message: bytes,
-        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
-        participant_indexes: Tuple[int, ...],
-        bip32_tweak: Optional[int] = None,
-        taproot_tweak: Optional[int] = None,
+        nonce_commitment_pairs: tuple[tuple[Point, Point], ...],
+        participant_indexes: tuple[int, ...],
+        bip32_tweak: int | None = None,
+        taproot_tweak: int | None = None,
     ):
         """
         Initialize the Aggregator for managing and processing cryptographic
@@ -37,7 +37,8 @@ class Aggregator:
         message (bytes): The message that is being signed.
         nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): A tuple of
             nonce commitments from each participant.
-        participant_indexes (Tuple[int, ...]): Indices of participants involved in the signature process.
+        participant_indexes (Tuple[int, ...]): Indices of participants involved in the
+            signature process.
         bip32_tweak (Optional[int]): Optional BIP32 tweak value for key tweaking.
         taproot_tweak (Optional[int]): Optional Taproot tweak value for key tweaking.
 
@@ -66,16 +67,14 @@ class Aggregator:
             )
 
         if bip32_tweak is not None and taproot_tweak is not None:
-            tweaked_key, tweak, _ = self._compute_tweaks(
-                bip32_tweak, taproot_tweak, public_key
-            )
+            tweaked_key, tweak, _ = self._compute_tweaks(bip32_tweak, taproot_tweak, public_key)
             self.tweaked_key = tweaked_key
             self.tweak = tweak
 
     @classmethod
     def tweak_key(
         cls, bip32_tweak: int, taproot_tweak: int, public_key: Point
-    ) -> Tuple[Point, int]:
+    ) -> tuple[Point, int]:
         tweaked_key, _, p = cls._compute_tweaks(bip32_tweak, taproot_tweak, public_key)
         return tweaked_key, p
 
@@ -83,8 +82,8 @@ class Aggregator:
     def group_commitment(
         cls,
         message: bytes,
-        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
-        participant_indexes: Tuple[int, ...],
+        nonce_commitment_pairs: tuple[tuple[Point, Point], ...],
+        participant_indexes: tuple[int, ...],
     ) -> Point:
         """
         Calculate the group commitment by aggregating individual commitments from participants.
@@ -125,8 +124,8 @@ class Aggregator:
         cls,
         index: int,
         message: bytes,
-        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
-        participant_indexes: Tuple[int, ...],
+        nonce_commitment_pairs: tuple[tuple[Point, Point], ...],
+        participant_indexes: tuple[int, ...],
     ) -> int:
         """
         Compute a binding value used in cryptographic operations, uniquely
@@ -171,9 +170,7 @@ class Aggregator:
         return int.from_bytes(binding_value_bytes, "big")
 
     @classmethod
-    def challenge_hash(
-        cls, nonce_commitment: Point, public_key: Point, message: bytes
-    ) -> int:
+    def challenge_hash(cls, nonce_commitment: Point, public_key: Point, message: bytes) -> int:
         """
         Compute the challenge hash used in cryptographic operations, binding
         the nonce commitment, public key, and message.
@@ -199,7 +196,7 @@ class Aggregator:
         return int.from_bytes(challenge_hash_bytes, "big") % Q
 
     @classmethod
-    def derive_shared_secret(cls, shared_secret_shares: Tuple[Point, ...]) -> Point:
+    def derive_shared_secret(cls, shared_secret_shares: tuple[Point, ...]) -> Point:
         """
         Derive the shared secret from the aggregated shared secret shares.
 
@@ -217,7 +214,7 @@ class Aggregator:
 
         return shared_secret
 
-    def signing_inputs(self) -> Tuple[bytes, Tuple[Tuple[Point, Point], ...]]:
+    def signing_inputs(self) -> tuple[bytes, tuple[tuple[Point, Point], ...]]:
         """
         Returns the signing inputs to be used by the signers.
 
@@ -230,12 +227,13 @@ class Aggregator:
         # (m, B)
         return (self.message, self.nonce_commitment_pairs)
 
-    def signature(self, signature_shares: Tuple[int, ...]) -> str:
+    def signature(self, signature_shares: tuple[int, ...]) -> str:
         """
         Compute the final signature from the aggregated signature shares.
 
         Parameters:
-        signature_shares (Tuple[int, ...]): Tuple of signature shares from all participating members.
+        signature_shares (Tuple[int, ...]): Tuple of signature shares from all
+            participating members.
 
         Returns:
         str: The final signature in hexadecimal format.
@@ -250,9 +248,7 @@ class Aggregator:
         z = sum(signature_shares) % Q
 
         if self.tweak and self.tweaked_key:
-            challenge_hash = self.challenge_hash(
-                group_commitment, self.tweaked_key, self.message
-            )
+            challenge_hash = self.challenge_hash(group_commitment, self.tweaked_key, self.message)
             z = (z + (challenge_hash * self.tweak)) % Q
 
         # σ = (R, z)
@@ -261,7 +257,7 @@ class Aggregator:
     @classmethod
     def _compute_tweaks(
         cls, bip32_tweak: int, taproot_tweak: int, public_key: Point
-    ) -> Tuple[Point, int, int]:
+    ) -> tuple[Point, int, int]:
         """
         Compute the tweaked keys and adjustments for the given BIP32 and Taproot tweaks.
 

@@ -1,7 +1,7 @@
+import secrets
 import unittest
 
-import secrets
-from frost import Point, Participant, Aggregator, Q, G
+from frost import Aggregator, G, Participant, Point, Q
 
 
 class Tests(unittest.TestCase):
@@ -30,15 +30,9 @@ class Tests(unittest.TestCase):
         p3.aggregate_shares((p1.shares[p3.index - 1], p2.shares[p3.index - 1]))
 
         # Round 2.4
-        p1.derive_public_key(
-            (p2.coefficient_commitments[0], p3.coefficient_commitments[0])
-        )
-        p2.derive_public_key(
-            (p1.coefficient_commitments[0], p3.coefficient_commitments[0])
-        )
-        p3.derive_public_key(
-            (p1.coefficient_commitments[0], p2.coefficient_commitments[0])
-        )
+        p1.derive_public_key((p2.coefficient_commitments[0], p3.coefficient_commitments[0]))
+        p2.derive_public_key((p1.coefficient_commitments[0], p3.coefficient_commitments[0]))
+        p3.derive_public_key((p1.coefficient_commitments[0], p2.coefficient_commitments[0]))
 
         pk1 = p1.public_key
         pk2 = p2.public_key
@@ -47,15 +41,9 @@ class Tests(unittest.TestCase):
         self.assertEqual(pk1, pk2)
         self.assertEqual(pk2, pk3)
 
-        p1.derive_group_commitments(
-            (p2.coefficient_commitments, p3.coefficient_commitments)
-        )
-        p2.derive_group_commitments(
-            (p1.coefficient_commitments, p3.coefficient_commitments)
-        )
-        p3.derive_group_commitments(
-            (p1.coefficient_commitments, p2.coefficient_commitments)
-        )
+        p1.derive_group_commitments((p2.coefficient_commitments, p3.coefficient_commitments))
+        p2.derive_group_commitments((p1.coefficient_commitments, p3.coefficient_commitments))
+        p3.derive_group_commitments((p1.coefficient_commitments, p2.coefficient_commitments))
 
         group_commitments1 = p1.group_commitments
         group_commitments2 = p2.group_commitments
@@ -108,26 +96,14 @@ class Tests(unittest.TestCase):
         )
 
         # Round 2.2
-        self.assertTrue(
-            p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2)
-        )
+        self.assertTrue(p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2))
+        self.assertTrue(p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2)
-        )
+        self.assertTrue(p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2))
+        self.assertTrue(p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
-        )
+        self.assertTrue(p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2))
+        self.assertTrue(p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2))
 
         # Reconstruct secret
         pk1 = p1.public_key
@@ -151,9 +127,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, 3))
         l3 = p3._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (p3.aggregate_share * l3)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
         ) % Q
         self.assertEqual(secret * G, pk1)
 
@@ -276,36 +250,18 @@ class Tests(unittest.TestCase):
         p2.aggregate_shares((p1.shares[p2.index - 1], p3.shares[p2.index - 1]))
         p3.aggregate_shares((p1.shares[p3.index - 1], p2.shares[p3.index - 1]))
 
-        self.assertTrue(
-            p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2)
-        )
+        self.assertTrue(p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2))
+        self.assertTrue(p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2)
-        )
+        self.assertTrue(p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2))
+        self.assertTrue(p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
-        )
+        self.assertTrue(p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2))
+        self.assertTrue(p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2))
 
-        p1.derive_group_commitments(
-            (p2.coefficient_commitments, p3.coefficient_commitments)
-        )
-        p2.derive_group_commitments(
-            (p1.coefficient_commitments, p3.coefficient_commitments)
-        )
-        p3.derive_group_commitments(
-            (p1.coefficient_commitments, p2.coefficient_commitments)
-        )
+        p1.derive_group_commitments((p2.coefficient_commitments, p3.coefficient_commitments))
+        p2.derive_group_commitments((p1.coefficient_commitments, p3.coefficient_commitments))
+        p3.derive_group_commitments((p1.coefficient_commitments, p2.coefficient_commitments))
 
         group_commitments1 = p1.group_commitments
         group_commitments2 = p2.group_commitments
@@ -340,9 +296,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, 3))
         l3 = p3._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (p3.aggregate_share * l3)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
         ) % Q
         self.assertEqual(secret * G, pk1)
 
@@ -575,9 +529,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, 4))
         l4 = p4._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (p4.aggregate_share * l4)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p4.aggregate_share * l4)
         ) % Q
         self.assertEqual(secret * G, pk1)
 
@@ -598,13 +550,9 @@ class Tests(unittest.TestCase):
         p1.aggregate_shares((p2.shares[p1.index - 1],))
         p2.aggregate_shares((p1.shares[p2.index - 1],))
 
-        self.assertTrue(
-            p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2)
-        )
+        self.assertTrue(p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2)
-        )
+        self.assertTrue(p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2))
 
         # Reconstruct secret
         pk1 = p1.public_key
@@ -628,9 +576,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, 3))
         l3 = p3._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (p3.aggregate_share * l3)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
         ) % Q
         self.assertNotEqual(secret * G, pk1)
 
@@ -754,9 +700,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, 3))
         l3 = p3._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (p3.aggregate_share * l3)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
         ) % Q
         self.assertEqual(secret * G, pk1)
 
@@ -817,15 +761,9 @@ class Tests(unittest.TestCase):
             )
         )
 
-        p1.aggregate_repair_shares(
-            (p2.get_repair_share(p1.index), p3.get_repair_share(p1.index))
-        )
-        p2.aggregate_repair_shares(
-            (p1.get_repair_share(p2.index), p3.get_repair_share(p2.index))
-        )
-        p3.aggregate_repair_shares(
-            (p1.get_repair_share(p3.index), p2.get_repair_share(p3.index))
-        )
+        p1.aggregate_repair_shares((p2.get_repair_share(p1.index), p3.get_repair_share(p1.index)))
+        p2.aggregate_repair_shares((p1.get_repair_share(p2.index), p3.get_repair_share(p2.index)))
+        p3.aggregate_repair_shares((p1.get_repair_share(p3.index), p2.get_repair_share(p3.index)))
 
         self.assertTrue(
             revealed.verify_aggregate_repair_share(
@@ -878,9 +816,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, revealed_share_index))
         l4 = revealed._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (revealed.aggregate_share * l4)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (revealed.aggregate_share * l4)
         ) % Q
         self.assertEqual(secret * G, pk1)
 
@@ -937,26 +873,14 @@ class Tests(unittest.TestCase):
         p2.generate_shares()
         p3.generate_shares()
 
-        self.assertTrue(
-            p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2)
-        )
+        self.assertTrue(p1.verify_share(p2.shares[p1.index - 1], p2.coefficient_commitments, 2))
+        self.assertTrue(p1.verify_share(p3.shares[p1.index - 1], p3.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2)
-        )
+        self.assertTrue(p2.verify_share(p1.shares[p2.index - 1], p1.coefficient_commitments, 2))
+        self.assertTrue(p2.verify_share(p3.shares[p2.index - 1], p3.coefficient_commitments, 2))
 
-        self.assertTrue(
-            p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2)
-        )
-        self.assertTrue(
-            p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2)
-        )
+        self.assertTrue(p3.verify_share(p1.shares[p3.index - 1], p1.coefficient_commitments, 2))
+        self.assertTrue(p3.verify_share(p2.shares[p3.index - 1], p2.coefficient_commitments, 2))
 
         p1.increase_threshold((p2.shares[p1.index - 1], p3.shares[p1.index - 1]))
         p2.increase_threshold((p1.shares[p2.index - 1], p3.shares[p2.index - 1]))
@@ -969,9 +893,7 @@ class Tests(unittest.TestCase):
         l2 = p2._lagrange_coefficient((1, 3))
         l3 = p3._lagrange_coefficient((1, 2))
         secret = (
-            (p1.aggregate_share * l1)
-            + (p2.aggregate_share * l2)
-            + (p3.aggregate_share * l3)
+            (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
         ) % Q
         self.assertEqual(secret * G, pk1)
 

@@ -10,13 +10,13 @@ generating and handling cryptographic shares, participating in signature
 creation, and verifying the integrity of the process.
 """
 
-from hashlib import sha256
 import secrets
-from typing import Tuple, Optional, List
-from .constants import Q
-from .point import Point, G
+from hashlib import sha256
+
 from .aggregator import Aggregator
+from .constants import Q
 from .matrix import Matrix
+from .point import G, Point
 
 
 class Participant:
@@ -39,26 +39,24 @@ class Participant:
         ValueError: If any of the arguments are not integers.
         """
         if not all(isinstance(arg, int) for arg in (index, threshold, participants)):
-            raise ValueError(
-                "All arguments (index, threshold, participants) must be integers."
-            )
+            raise ValueError("All arguments (index, threshold, participants) must be integers.")
 
         self.index = index
         self.threshold = threshold
         self.participants = participants
-        self.coefficients: Optional[Tuple[int, ...]] = None
-        self.coefficient_commitments: Optional[Tuple[Point, ...]] = None
-        self.proof_of_knowledge: Optional[Tuple[Point, int]] = None
-        self.shares: Optional[Tuple[int, ...]] = None
-        self.aggregate_share: Optional[int] = None
-        self.nonce_pair: Optional[Tuple[int, int]] = None
-        self.nonce_commitment_pair: Optional[Tuple[Point, Point]] = None
-        self.public_key: Optional[Point] = None
-        self.repair_shares: Optional[Tuple[Optional[int], ...]] = None
-        self.aggregate_repair_share: Optional[int] = None
-        self.repair_share_commitments: Optional[Tuple[Optional[Point], ...]] = None
-        self.group_commitments: Optional[Tuple[Point, ...]] = None
-        self.repair_participants: Optional[Tuple[int, ...]] = None
+        self.coefficients: tuple[int, ...] | None = None
+        self.coefficient_commitments: tuple[Point, ...] | None = None
+        self.proof_of_knowledge: tuple[Point, int] | None = None
+        self.shares: tuple[int, ...] | None = None
+        self.aggregate_share: int | None = None
+        self.nonce_pair: tuple[int, int] | None = None
+        self.nonce_commitment_pair: tuple[Point, Point] | None = None
+        self.public_key: Point | None = None
+        self.repair_shares: tuple[int | None, ...] | None = None
+        self.aggregate_repair_share: int | None = None
+        self.repair_share_commitments: tuple[Point | None, ...] | None = None
+        self.group_commitments: tuple[Point, ...] | None = None
+        self.repair_participants: tuple[int, ...] | None = None
 
     def init_keygen(self) -> None:
         """
@@ -75,8 +73,9 @@ class Participant:
 
     def init_refresh(self) -> None:
         """
-        Initialize proactive secret sharing refresh for a participant by generating a new polynomial
-        with random coefficients and computing new coefficient commitments.
+        Initialize proactive secret sharing refresh for a participant by generating
+        a new polynomial with random coefficients and computing new coefficient
+        commitments.
         """
         # 1. Generate polynomial with random coefficients, and with degree
         # equal to the threshold minus one, with the first coefficient set to 0.
@@ -104,9 +103,7 @@ class Participant:
         if not isinstance(new_threshold, int):
             raise ValueError("New threshold must be an integer.")
         if new_threshold <= self.threshold:
-            raise ValueError(
-                "New threshold must be greater than the current threshold."
-            )
+            raise ValueError("New threshold must be greater than the current threshold.")
 
         self._generate_threshold_increase_polynomial(new_threshold)
         self._compute_proof_of_knowledge()
@@ -117,9 +114,7 @@ class Participant:
     def _generate_polynomial(self) -> None:
         """Generate random polynomial coefficients."""
         # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
-        self.coefficients = tuple(
-            secrets.randbits(256) % Q for _ in range(self.threshold)
-        )
+        self.coefficients = tuple(secrets.randbits(256) % Q for _ in range(self.threshold))
 
     def _generate_refresh_polynomial(self) -> None:
         """
@@ -130,9 +125,8 @@ class Participant:
         # Generate the rest of the coefficients randomly, except the first one which is set to 0.
         # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
         # a_i_0 is set to 0 explicitly.
-        self.coefficients = (0,) + tuple(
-            secrets.randbits(256) % Q for _ in range(self.threshold - 1)
-        )
+        rest = tuple(secrets.randbits(256) % Q for _ in range(self.threshold - 1))
+        self.coefficients = (0, *rest)
 
     def _generate_threshold_increase_polynomial(self, new_threshold: int) -> None:
         """
@@ -143,9 +137,7 @@ class Participant:
         new_threshold (int): The new threshold value which must be an integer greater than the
         current threshold.
         """
-        self.coefficients = tuple(
-            secrets.randbits(256) % Q for _ in range(new_threshold - 1)
-        )
+        self.coefficients = tuple(secrets.randbits(256) % Q for _ in range(new_threshold - 1))
 
     def _compute_proof_of_knowledge(self) -> None:
         """
@@ -190,12 +182,10 @@ class Participant:
 
         # C_i = ⟨𝜙_i_0, ..., 𝜙_i_(t - 1)⟩
         # 𝜙_i_j = g^a_i_j, 0 ≤ j ≤ t - 1
-        self.coefficient_commitments = tuple(
-            coefficient * G for coefficient in self.coefficients
-        )
+        self.coefficient_commitments = tuple(coefficient * G for coefficient in self.coefficients)
 
     def verify_proof_of_knowledge(
-        self, proof: Tuple[Point, int], secret_commitment: Point, index: int
+        self, proof: tuple[Point, int], secret_commitment: Point, index: int
     ) -> bool:
         """
         Verify the proof of knowledge for a given participant's commitment.
@@ -230,17 +220,12 @@ class Participant:
         nonce_commitment_bytes = nonce_commitment.sec_serialize()
         # c_l = H(l, 𝚽, g^a_l_0, R_l)
         challenge_input = (
-            index_byte
-            + context_bytes
-            + secret_commitment_bytes
-            + nonce_commitment_bytes
+            index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
         )
         challenge_hash = sha256(challenge_input).digest()
         challenge_hash_int = int.from_bytes(challenge_hash, "big")
         # R_l ≟ g^μ_l * 𝜙_l_0^-c_l, 1 ≤ l ≤ n, l ≠ i
-        expected_nonce_commitment = (s * G) + (
-            (Q - challenge_hash_int) * secret_commitment
-        )
+        expected_nonce_commitment = (s * G) + ((Q - challenge_hash_int) * secret_commitment)
         return nonce_commitment == expected_nonce_commitment
 
     def generate_shares(self):
@@ -256,13 +241,9 @@ class Participant:
             )
 
         # (i, f_i(i)), (l, f_i(l))
-        self.shares = tuple(
-            self._evaluate_polynomial(x) for x in range(1, self.participants + 1)
-        )
+        self.shares = tuple(self._evaluate_polynomial(x) for x in range(1, self.participants + 1))
 
-    def generate_repair_shares(
-        self, repair_participants: Tuple[int, ...], index: int
-    ) -> None:
+    def generate_repair_shares(self, repair_participants: tuple[int, ...], index: int) -> None:
         """
         Generate repair shares and commitments to assist a participant in
         recovering a lost share.
@@ -278,16 +259,12 @@ class Participant:
             raise ValueError("Aggregate share has not been initialized.")
 
         lagrange_coefficient = self._lagrange_coefficient(repair_participants, index)
-        random_shares = tuple(
-            secrets.randbits(256) % Q for _ in range(self.threshold - 1)
-        )
-        final_share = (
-            (lagrange_coefficient * self.aggregate_share) - sum(random_shares)
-        ) % Q
+        random_shares = tuple(secrets.randbits(256) % Q for _ in range(self.threshold - 1))
+        final_share = ((lagrange_coefficient * self.aggregate_share) - sum(random_shares)) % Q
 
-        self.repair_shares = random_shares + (final_share,)
+        self.repair_shares = (*random_shares, final_share)
         self.repair_share_commitments = tuple(share * G for share in self.repair_shares)
-        self.repair_participants = tuple(sorted(repair_participants + (self.index,)))
+        self.repair_participants = tuple(sorted((*repair_participants, self.index)))
 
     def get_repair_share(self, participant_index):
         """
@@ -312,8 +289,8 @@ class Participant:
     def get_repair_share_commitment(
         self,
         participant_index,
-        repair_share_commitments: Tuple[Point, ...],
-        repair_participants: Optional[Tuple[int, ...]] = None,
+        repair_share_commitments: tuple[Point, ...],
+        repair_participants: tuple[int, ...] | None = None,
     ):
         """
         Retrieves the repair share commitment for the given participant index.
@@ -343,10 +320,10 @@ class Participant:
     def verify_aggregate_repair_share(
         self,
         aggregate_repair_share: int,
-        repair_share_commitments: Tuple[Tuple[Point, ...]],
+        repair_share_commitments: tuple[tuple[Point, ...]],
         aggregator_index: int,
-        repair_participants: Tuple[int, ...],
-        group_commitments: Tuple[Point, ...],
+        repair_participants: tuple[int, ...],
+        group_commitments: tuple[Point, ...],
     ) -> bool:
         """
         Verify the aggregate repair share against the provided commitments.
@@ -368,11 +345,9 @@ class Participant:
         ValueError: If the number of repair share commitments does not match the threshold.
         """
         if len(repair_share_commitments) != self.threshold:
-            raise ValueError(
-                "The number of repair share commitments must match the threshold."
-            )
+            raise ValueError("The number of repair share commitments must match the threshold.")
         for dealer_index, commitments in zip(
-            repair_participants, repair_share_commitments
+            repair_participants, repair_share_commitments, strict=True
         ):
             lagrange_coefficient = self._lagrange_coefficient(
                 repair_participants, self.index, dealer_index
@@ -398,7 +373,7 @@ class Participant:
     def verify_repair_share(
         self,
         repair_share: int,
-        repair_share_commitments: Tuple[Point, ...],
+        repair_share_commitments: tuple[Point, ...],
         repair_index: int,
         dealer_index: int,
     ) -> bool:
@@ -428,9 +403,7 @@ class Participant:
         ):
             return False
         if len(repair_share_commitments) != self.threshold:
-            raise ValueError(
-                "The number of repair share commitments must match the threshold."
-            )
+            raise ValueError("The number of repair share commitments must match the threshold.")
 
         lagrange_coefficient = self._lagrange_coefficient(
             self.repair_participants, repair_index, dealer_index
@@ -438,9 +411,7 @@ class Participant:
         dealer_public_share = self.derive_public_verification_share(
             self.group_commitments, dealer_index, self.threshold
         )
-        return lagrange_coefficient * dealer_public_share == sum(
-            repair_share_commitments, Point()
-        )
+        return lagrange_coefficient * dealer_public_share == sum(repair_share_commitments, Point())
 
     def _evaluate_polynomial(self, x: int) -> int:
         """
@@ -467,9 +438,9 @@ class Participant:
 
     def _lagrange_coefficient(
         self,
-        participant_indexes: Tuple[int, ...],
+        participant_indexes: tuple[int, ...],
         x: int = 0,
-        participant_index: Optional[int] = None,
+        participant_index: int | None = None,
     ) -> int:
         """
         Calculate the Lagrange coefficient for this participant relative to other participants.
@@ -506,7 +477,7 @@ class Participant:
         return (numerator * pow(denominator, Q - 2, Q)) % Q
 
     def verify_share(
-        self, share: int, coefficient_commitments: Tuple[Point, ...], threshold: int
+        self, share: int, coefficient_commitments: tuple[Point, ...], threshold: int
     ) -> bool:
         """
         Verify that a given share matches the expected value derived from coefficient commitments.
@@ -523,9 +494,7 @@ class Participant:
         ValueError: If the number of coefficient commitments does not match the threshold.
         """
         if len(coefficient_commitments) != threshold:
-            raise ValueError(
-                "The number of coefficient commitments must match the threshold."
-            )
+            raise ValueError("The number of coefficient commitments must match the threshold.")
 
         # ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
         expected_share = self.derive_public_verification_share(
@@ -535,7 +504,7 @@ class Participant:
         # g^f_l(i) ≟ ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
         return share * G == expected_share
 
-    def aggregate_shares(self, other_shares: Tuple[int, ...]) -> None:
+    def aggregate_shares(self, other_shares: tuple[int, ...]) -> None:
         """
         Aggregate the shares from all participants to compute the participant's aggregate share.
 
@@ -574,7 +543,7 @@ class Participant:
         else:
             self.aggregate_share = aggregate_share
 
-    def aggregate_repair_shares(self, other_shares: Tuple[int, ...]) -> None:
+    def aggregate_repair_shares(self, other_shares: tuple[int, ...]) -> None:
         """
         Aggregate the repair shares from participants to compute the
         participant's aggregate repair share.
@@ -608,7 +577,7 @@ class Participant:
 
         self.aggregate_repair_share = aggregate_repair_share
 
-    def repair_share(self, aggregate_repair_shares: Tuple[int, ...]) -> None:
+    def repair_share(self, aggregate_repair_shares: tuple[int, ...]) -> None:
         """
         Repair or reconstruct the participant's aggregate share from provided repair shares.
 
@@ -637,9 +606,7 @@ class Participant:
 
         self.aggregate_share = sum(aggregate_repair_shares) % Q
 
-    def decrement_threshold(
-        self, revealed_share: int, revealed_share_index: int
-    ) -> None:
+    def decrement_threshold(self, revealed_share: int, revealed_share_index: int) -> None:
         """
         Decrement the threshold by one and adjust the participant's share accordingly.
 
@@ -678,7 +645,7 @@ class Participant:
         )
         self.group_commitments = group_commitments
 
-    def increase_threshold(self, other_shares: Tuple[int, ...]) -> None:
+    def increase_threshold(self, other_shares: tuple[int, ...]) -> None:
         """
         Aggregate shares to increase the threshold.
 
@@ -715,7 +682,7 @@ class Participant:
         return self.aggregate_share * G
 
     def derive_public_verification_share(
-        self, coefficient_commitments: Tuple[Point, ...], index: int, threshold: int
+        self, coefficient_commitments: tuple[Point, ...], index: int, threshold: int
     ) -> Point:
         """
         Compute the public verification share of any participant from the
@@ -734,9 +701,7 @@ class Participant:
         threshold.
         """
         if len(coefficient_commitments) != threshold:
-            raise ValueError(
-                "The number of coefficient commitments must match the threshold."
-            )
+            raise ValueError("The number of coefficient commitments must match the threshold.")
 
         expected_y_commitment = Point()  # Point at infinity
         for k, commitment in enumerate(coefficient_commitments):
@@ -744,7 +709,7 @@ class Participant:
 
         return expected_y_commitment
 
-    def derive_public_key(self, other_secret_commitments: Tuple[Point, ...]) -> Point:
+    def derive_public_key(self, other_secret_commitments: tuple[Point, ...]) -> Point:
         """
         Derive the public key by summing up the secret commitments.
 
@@ -759,9 +724,7 @@ class Participant:
         ValueError: If the coefficient commitments are not initialized or are empty.
         """
         if not self.coefficient_commitments:
-            raise ValueError(
-                "Coefficient commitments have not been initialized or are empty."
-            )
+            raise ValueError("Coefficient commitments have not been initialized or are empty.")
 
         # Y = ∏ 𝜙_j_0, 1 ≤ j ≤ n
         public_key = self.coefficient_commitments[0]
@@ -774,7 +737,7 @@ class Participant:
         return public_key
 
     def derive_group_commitments(
-        self, other_coefficient_commitments: Tuple[Tuple[Point, ...]]
+        self, other_coefficient_commitments: tuple[tuple[Point, ...]]
     ) -> None:
         """
         Derives and updates the group commitments for the instance by combining
@@ -801,21 +764,20 @@ class Participant:
         None: This method updates the group commitments in-place and does not return any value.
         """
         if not self.coefficient_commitments:
-            raise ValueError(
-                "Coefficient commitments have not been initialized or are empty."
-            )
+            raise ValueError("Coefficient commitments have not been initialized or are empty.")
 
         group_commitments = tuple(
             sum(commitments, Point())
             for commitments in zip(
-                *(other_coefficient_commitments + (self.coefficient_commitments,))
+                *((*other_coefficient_commitments, self.coefficient_commitments)),
+                strict=True,
             )
         )
 
         if self.group_commitments is not None:
             self.group_commitments = tuple(
                 sum(commitments, Point())
-                for commitments in zip(self.group_commitments, group_commitments)
+                for commitments in zip(self.group_commitments, group_commitments, strict=True)
             )
         else:
             self.group_commitments = group_commitments
@@ -836,10 +798,10 @@ class Participant:
     def sign(
         self,
         message: bytes,
-        nonce_commitment_pairs: Tuple[Tuple[Point, Point], ...],
-        participant_indexes: Tuple[int, ...],
-        bip32_tweak: Optional[int] = None,
-        taproot_tweak: Optional[int] = None,
+        nonce_commitment_pairs: tuple[tuple[Point, Point], ...],
+        participant_indexes: tuple[int, ...],
+        bip32_tweak: int | None = None,
+        taproot_tweak: int | None = None,
     ) -> int:
         """
         Generate a signature contribution for this participant.
@@ -848,7 +810,8 @@ class Participant:
         message (bytes): The message being signed.
         nonce_commitment_pairs (Tuple[Tuple[Point, Point], ...]): Tuple of
         tuples of nonce commitments.
-        participant_indexes (Tuple[int, ...]): Tuple of participant indexes involved in the signing.
+        participant_indexes (Tuple[int, ...]): Tuple of participant indexes involved
+            in the signing.
 
         Returns:
         int: The signature share of this participant.
@@ -875,14 +838,10 @@ class Participant:
         public_key = self.public_key
         parity = 0
         if bip32_tweak is not None and taproot_tweak is not None:
-            public_key, parity = Aggregator.tweak_key(
-                bip32_tweak, taproot_tweak, self.public_key
-            )
+            public_key, parity = Aggregator.tweak_key(bip32_tweak, taproot_tweak, self.public_key)
 
         # c = H_2(R, Y, m)
-        challenge_hash = Aggregator.challenge_hash(
-            group_commitment, public_key, message
-        )
+        challenge_hash = Aggregator.challenge_hash(group_commitment, public_key, message)
 
         # d_i, e_i
         first_nonce, second_nonce = self.nonce_pair
@@ -916,9 +875,9 @@ class Participant:
 
     def derive_coefficient_commitments(
         self,
-        public_verification_shares: Tuple[Point, ...],
-        participant_indexes: Tuple[int, ...],
-    ) -> Tuple[Point, ...]:
+        public_verification_shares: tuple[Point, ...],
+        participant_indexes: tuple[int, ...],
+    ) -> tuple[Point, ...]:
         """
         Derive polynomial coefficient commitments from public verification shares.
 
@@ -962,7 +921,7 @@ class Participant:
         return tuple(coeff[0] for coeff in coefficients)
 
     def derive_shared_secret_share(
-        self, public_key: Point, participant_indexes: Tuple[int, ...]
+        self, public_key: Point, participant_indexes: tuple[int, ...]
     ) -> Point:
         """
         Derives a shared secret share using a public key and participant

@@ -9,14 +9,14 @@ such as point doubling, scalar multiplication, and checks for the point at infin
 """
 
 from __future__ import annotations
-from typing import Optional
-from .constants import P, Q, G_x, G_y
+
+from .constants import G_x, G_y, P, Q
 
 
 class Point:
     """Class representing an elliptic curve point."""
 
-    def __init__(self, x: Optional[int] = None, y: Optional[int] = None):
+    def __init__(self, x: int | None = None, y: int | None = None):
         """
         Initialize a point on an elliptic curve.
 
@@ -38,7 +38,8 @@ class Point:
         Deserialize a SEC 1 compressed hex-encoded public key to a Point object.
 
         Parameters:
-        hex_public_key (str): Hexadecimal string of 33 bytes representing the compressed public key.
+        hex_public_key (str): Hexadecimal string of 33 bytes representing the
+            compressed public key.
 
         Returns:
         Point: An instance of Point corresponding to the deserialized public key.
@@ -109,9 +110,7 @@ class Point:
         try:
             hex_bytes = bytes.fromhex(hex_public_key)
             if len(hex_bytes) != 32:
-                raise ValueError(
-                    "Input must be exactly 32 bytes long for x-only format."
-                )
+                raise ValueError("Input must be exactly 32 bytes long for x-only format.")
             x = int.from_bytes(hex_bytes, "big")
             y_squared = (pow(x, 3, P) + 7) % P
             y = pow(y_squared, (P + 1) // 4, P)
@@ -142,7 +141,8 @@ class Point:
 
     def is_zero(self) -> bool:
         """
-        Check if the point is the identity element (point at infinity) in elliptic curve arithmetic.
+        Check if the point is the identity element (point at infinity) in elliptic
+        curve arithmetic.
 
         Returns:
         bool: True if the point is at infinity, False otherwise.
@@ -175,8 +175,9 @@ class Point:
         Point: A new Point that is the negation of the current point. If the
         current point is at infinity, it returns the point at infinity.
 
-        The negation of a point involves reflecting it over the x-axis, which means the x-coordinate
-        remains the same and the y-coordinate is subtracted from the modulus P.
+        The negation of a point involves reflecting it over the x-axis, which means
+        the x-coordinate remains the same and the y-coordinate is subtracted from
+        the modulus P.
         """
         if self.x is None or self.y is None:
             return self
