@@ -1,4 +1,5 @@
 from frost import G, Q
+from frost.lagrange import lagrange_coefficient
 
 
 def test_keygen(keygen_group):
@@ -39,24 +40,24 @@ def test_keygen(keygen_group):
     # Reconstruct secret from different subsets
     pk1 = p1.public_key
 
-    l1 = p1._lagrange_coefficient((2,))
-    l2 = p2._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((2,), 1))
+    l2 = int(lagrange_coefficient((1,), 2))
     secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
     assert secret * G == pk1
 
-    l1 = p1._lagrange_coefficient((3,))
-    l3 = p3._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((3,), 1))
+    l3 = int(lagrange_coefficient((1,), 3))
     secret = ((p1.aggregate_share * l1) + (p3.aggregate_share * l3)) % Q
     assert secret * G == pk1
 
-    l2 = p2._lagrange_coefficient((3,))
-    l3 = p3._lagrange_coefficient((2,))
+    l2 = int(lagrange_coefficient((3,), 2))
+    l3 = int(lagrange_coefficient((2,), 3))
     secret = ((p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
     assert secret * G == pk1
 
-    l1 = p1._lagrange_coefficient((2, 3))
-    l2 = p2._lagrange_coefficient((1, 3))
-    l3 = p3._lagrange_coefficient((1, 2))
+    l1 = int(lagrange_coefficient((2, 3), 1))
+    l2 = int(lagrange_coefficient((1, 3), 2))
+    l3 = int(lagrange_coefficient((1, 2), 3))
     secret = (
         (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
     ) % Q

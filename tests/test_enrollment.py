@@ -1,4 +1,5 @@
 from frost import G, Participant, Q
+from frost.lagrange import lagrange_coefficient
 
 
 def test_enrollment(keygen_group):
@@ -40,24 +41,24 @@ def test_enrollment(keygen_group):
     # Reconstruct secret from different subsets
     pk1 = p1.public_key
 
-    l1 = p1._lagrange_coefficient((2,))
-    l2 = p2._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((2,), 1))
+    l2 = int(lagrange_coefficient((1,), 2))
     secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
     assert secret * G == pk1
 
-    l1 = p1._lagrange_coefficient((4,))
-    l4 = p4._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((4,), 1))
+    l4 = int(lagrange_coefficient((1,), 4))
     secret = ((p1.aggregate_share * l1) + (p4.aggregate_share * l4)) % Q
     assert secret * G == pk1
 
-    l2 = p2._lagrange_coefficient((4,))
-    l4 = p4._lagrange_coefficient((2,))
+    l2 = int(lagrange_coefficient((4,), 2))
+    l4 = int(lagrange_coefficient((2,), 4))
     secret = ((p2.aggregate_share * l2) + (p4.aggregate_share * l4)) % Q
     assert secret * G == pk1
 
-    l1 = p1._lagrange_coefficient((2, 4))
-    l2 = p2._lagrange_coefficient((1, 4))
-    l4 = p4._lagrange_coefficient((1, 2))
+    l1 = int(lagrange_coefficient((2, 4), 1))
+    l2 = int(lagrange_coefficient((1, 4), 2))
+    l4 = int(lagrange_coefficient((1, 2), 4))
     secret = (
         (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p4.aggregate_share * l4)
     ) % Q
@@ -85,25 +86,25 @@ def test_disenrollment(keygen_group):
     # Reconstruct secret
     pk1 = p1.public_key
 
-    l1 = p1._lagrange_coefficient((2,))
-    l2 = p2._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((2,), 1))
+    l2 = int(lagrange_coefficient((1,), 2))
     secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
     assert secret * G == pk1
 
     # p3's old share should no longer reconstruct the secret
-    l1 = p1._lagrange_coefficient((3,))
-    l3 = p3._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((3,), 1))
+    l3 = int(lagrange_coefficient((1,), 3))
     secret = ((p1.aggregate_share * l1) + (p3.aggregate_share * l3)) % Q
     assert secret * G != pk1
 
-    l2 = p2._lagrange_coefficient((3,))
-    l3 = p3._lagrange_coefficient((2,))
+    l2 = int(lagrange_coefficient((3,), 2))
+    l3 = int(lagrange_coefficient((2,), 3))
     secret = ((p2.aggregate_share * l2) + (p3.aggregate_share * l3)) % Q
     assert secret * G != pk1
 
-    l1 = p1._lagrange_coefficient((2, 3))
-    l2 = p2._lagrange_coefficient((1, 3))
-    l3 = p3._lagrange_coefficient((1, 2))
+    l1 = int(lagrange_coefficient((2, 3), 1))
+    l2 = int(lagrange_coefficient((1, 3), 2))
+    l3 = int(lagrange_coefficient((1, 2), 3))
     secret = (
         (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
     ) % Q

@@ -1,6 +1,7 @@
 import secrets
 
 from frost import G, Participant, Q
+from frost.lagrange import lagrange_coefficient
 
 
 def test_threshold_decrease():
@@ -95,9 +96,9 @@ def test_threshold_decrease():
     assert p3.verify_share(p3.aggregate_share, group_commitments, 3)
     assert p4.verify_share(p4.aggregate_share, group_commitments, 3)
 
-    l1 = p1._lagrange_coefficient((2, 3))
-    l2 = p2._lagrange_coefficient((1, 3))
-    l3 = p3._lagrange_coefficient((1, 2))
+    l1 = int(lagrange_coefficient((2, 3), 1))
+    l2 = int(lagrange_coefficient((1, 3), 2))
+    l3 = int(lagrange_coefficient((1, 2), 3))
     secret = (
         (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
     ) % Q
@@ -153,17 +154,17 @@ def test_threshold_decrease():
     revealed.repair_share(
         (p1.aggregate_repair_share, p2.aggregate_repair_share, p3.aggregate_repair_share)
     )
-    l1 = p1._lagrange_coefficient((2, revealed_share_index))
-    l2 = p2._lagrange_coefficient((1, revealed_share_index))
-    l4 = revealed._lagrange_coefficient((1, 2))
+    l1 = int(lagrange_coefficient((2, revealed_share_index), 1))
+    l2 = int(lagrange_coefficient((1, revealed_share_index), 2))
+    l4 = int(lagrange_coefficient((1, 2), revealed_share_index))
     secret = (
         (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (revealed.aggregate_share * l4)
     ) % Q
     assert secret * G == pk1
 
     # Before decrement, 2-of-3 should NOT reconstruct
-    l1 = p1._lagrange_coefficient((2,))
-    l2 = p2._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((2,), 1))
+    l2 = int(lagrange_coefficient((1,), 2))
     secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
     assert secret * G != pk1
 
@@ -174,8 +175,8 @@ def test_threshold_decrease():
     p4.decrement_threshold(revealed.aggregate_share, revealed_share_index)
 
     # After decrement, 2-of-3 should reconstruct
-    l1 = p1._lagrange_coefficient((2,))
-    l2 = p2._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((2,), 1))
+    l2 = int(lagrange_coefficient((1,), 2))
     secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
     assert secret * G == pk1
 
@@ -200,8 +201,8 @@ def test_threshold_increase(keygen_group):
     pk1 = p1.public_key
 
     # Before increase, 2-of-3 reconstructs
-    l1 = p1._lagrange_coefficient((2,))
-    l2 = p2._lagrange_coefficient((1,))
+    l1 = int(lagrange_coefficient((2,), 1))
+    l2 = int(lagrange_coefficient((1,), 2))
     secret = ((p1.aggregate_share * l1) + (p2.aggregate_share * l2)) % Q
     assert secret * G == pk1
 
@@ -231,9 +232,9 @@ def test_threshold_increase(keygen_group):
     assert secret * G != pk1
 
     # But 3-of-3 does
-    l1 = p1._lagrange_coefficient((2, 3))
-    l2 = p2._lagrange_coefficient((1, 3))
-    l3 = p3._lagrange_coefficient((1, 2))
+    l1 = int(lagrange_coefficient((2, 3), 1))
+    l2 = int(lagrange_coefficient((1, 3), 2))
+    l3 = int(lagrange_coefficient((1, 2), 3))
     secret = (
         (p1.aggregate_share * l1) + (p2.aggregate_share * l2) + (p3.aggregate_share * l3)
     ) % Q
