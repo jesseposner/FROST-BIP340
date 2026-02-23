@@ -114,14 +114,14 @@ class Aggregator:
             if index < 1 or index > len(nonce_commitment_pairs):
                 raise ValueError(f"Participant index {index} is out of range.")
 
-            # p_l = H_1(l, m, B), l ∈ S
+            # ρₗ = H₁(l, m, B), l ∈ S
             binding_value = cls.binding_value(
                 index, message, nonce_commitment_pairs, participant_indexes
             )
-            # D_l, E_l
+            # Dₗ, Eₗ
             first_commitment, second_commitment = nonce_commitment_pairs[index - 1]
 
-            # R = ∏ D_l * (E_l)^p_l, l ∈ S
+            # R = ∏ Dₗ · (Eₗ)^ρₗ, l ∈ S
             group_commitment += first_commitment + (binding_value * second_commitment)
 
         return group_commitment
@@ -168,7 +168,7 @@ class Aggregator:
             )
             nonce_commitment_pairs_bytes.append(participant_pair_bytes)
 
-        # p_l = H_1(l, m, B), l ∈ S
+        # ρₗ = H₁(l, m, B), l ∈ S
         binding_value.update(index_byte)
         binding_value.update(message)
         binding_value.update(b"".join(nonce_commitment_pairs_bytes))
@@ -197,7 +197,7 @@ class Aggregator:
         Returns:
         int: The resulting challenge hash value as an integer, reduced by modulo Q.
         """
-        # c = H_2(R, Y, m)
+        # c = H₂(R, Y, m)
         challenge_bytes = tagged_hash(
             "BIP0340/challenge",
             nonce_commitment.to_bytes_xonly() + public_key.to_bytes_xonly() + message,
@@ -217,7 +217,7 @@ class Aggregator:
         Returns:
         Point: The derived shared secret as a point on the elliptic curve.
         """
-        # K = ∑ K_i, i ∈ S
+        # K = ∑ Kᵢ, i ∈ S
         shared_secret = Point()
         for shared_secret_share in shared_secret_shares:
             shared_secret += shared_secret_share
@@ -233,7 +233,7 @@ class Aggregator:
         message and the list of nonce commitments organized by participant
         indices.
         """
-        # B = ⟨(i, D_i, E_i)⟩_i∈S
+        # B = ⟨(i, Dᵢ, Eᵢ)⟩_i∈S
         # (m, B)
         return (self.message, self.nonce_commitment_pairs)
 
@@ -258,19 +258,19 @@ class Aggregator:
         produces an invalid group signature with no way to identify the culprit.
 
         Verification equation:
-            z_i * G == R_i_adj + c * lambda_i * Y_i_adj
+            zᵢ·G == Rᵢ_adj + c·λᵢ·Yᵢ_adj
         """
-        # 1. Compute binding value: rho_i = H_1(i, m, B)
+        # 1. Compute binding value: ρᵢ = H₁(i, m, B)
         rho_i = cls.binding_value(
             participant_index, message, nonce_commitment_pairs, participant_indexes
         )
 
-        # 2. Compute participant's nonce contribution: R_i = D_i + rho_i * E_i
+        # 2. Compute participant's nonce contribution: Rᵢ = Dᵢ + ρᵢ·Eᵢ
         pos = participant_indexes.index(participant_index)
         D_i, E_i = nonce_commitment_pairs[pos]
         R_i = D_i + (rho_i * E_i)
 
-        # 3. Negate R_i if group commitment has odd y
+        # 3. Negate Rᵢ if group commitment has odd y
         if group_commitment.y % 2 != 0:
             R_i = -R_i
 
@@ -285,14 +285,14 @@ class Aggregator:
         # 5. Compute Lagrange coefficient
         lam = lagrange_coefficient(participant_indexes, participant_index)
 
-        # 6. Adjust Y_i for key parity: negate if effective key has odd y
+        # 6. Adjust Yᵢ for key parity: negate if effective key has odd y
         Y_i = public_verification_share
         if tweaked_key.y is None:
             raise ValueError("Public key is the point at infinity.")
         if tweaked_key.y % 2 != parity:
             Y_i = -Y_i
 
-        # 7. Check: z_i * G == R_i_adj + (c * lambda_i) * Y_i_adj
+        # 7. Check: zᵢ·G == Rᵢ_adj + (c·λᵢ)·Yᵢ_adj
         return share * G == R_i + (challenge * int(lam)) * Y_i
 
     def signature(self, signature_shares: tuple[int, ...]) -> str:
@@ -330,7 +330,7 @@ class Aggregator:
                 ):
                     raise ValueError(f"Invalid signature share from participant {index}.")
 
-        # Aggregate signature: z = ∑ z_i (mod Q, the curve order)
+        # Aggregate signature: z = ∑ zᵢ (mod Q, the curve order)
         z = sum(signature_shares) % Q
 
         if self.tweak and self.tweaked_key:

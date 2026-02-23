@@ -39,14 +39,14 @@ def generate_repair_shares(
 
     Each helper computes their Lagrange-weighted contribution to the target's
     share, then splits it into random additive shares (one per helper). The
-    shares sum to lambda_i * s_i (where lambda_i is the helper's Lagrange
-    coefficient for the target index and s_i is the helper's aggregate share).
+    shares sum to λᵢ·sᵢ (where λᵢ is the helper's Lagrange coefficient for
+    the target index and sᵢ is the helper's aggregate share).
 
     This additive splitting prevents any single helper from learning another
     helper's weighted contribution, preserving the secrecy of individual shares.
 
     Parameters:
-        aggregate_share: This helper's aggregate share s_i.
+        aggregate_share: This helper's aggregate share sᵢ.
         threshold: The group's signing threshold t.
         repair_participants: Indexes of all participants helping with the repair
             (not including own_index).
@@ -142,9 +142,9 @@ def verify_repair_share(
     """Verify a repair share against its commitment and group commitments.
 
     Two checks are performed:
-    1. The share matches its commitment: share * G == commitment
+    1. The share matches its commitment: share·G == commitment
     2. The dealer's commitments are consistent with the group polynomial:
-       lambda * dealer_public_share == sum(commitments)
+       λ·dealer_public_share == ∑(commitments)
 
     The second check ensures the dealer actually used their real share (weighted
     by the correct Lagrange coefficient) to generate the repair shares.
@@ -260,8 +260,8 @@ def reconstruct_share(
 
     The repaired participant receives one aggregate repair share from each
     helper. Summing them recovers the original aggregate share, because each
-    helper's weighted contribution (lambda_i * s_i) reconstructs the
-    polynomial evaluation at the target index.
+    helper's weighted contribution (λᵢ·sᵢ) reconstructs the polynomial
+    evaluation at the target index.
 
     Parameters:
         aggregate_repair_shares: One aggregate repair share per helper.

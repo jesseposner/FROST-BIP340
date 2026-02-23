@@ -137,19 +137,19 @@ def derive_coefficient_commitments(
     Uses Vandermonde matrix inversion: given points (index, Y_i) on the
     commitment polynomial, solve for the coefficients.
 
-    The Vandermonde matrix V has entries V[i][k] = index_i^k. Given the
-    verification shares Y = (Y_1, ..., Y_n), the coefficient commitments
-    C = (C_0, ..., C_{n-1}) satisfy V * C = Y. So C = V^{-1} * Y.
+    The Vandermonde matrix V has entries V[i][k] = indexᵢ^k. Given the
+    verification shares Y = (Y₁, …, Yₙ), the coefficient commitments
+    C = (C₀, …, C_{n-1}) satisfy V·C = Y. So C = V⁻¹·Y.
 
     This is used after threshold changes to recover the new group commitments
     from the updated public verification shares.
 
     Parameters:
-        public_verification_shares: The verification shares Y_i = s_i * G.
+        public_verification_shares: The verification shares Yᵢ = sᵢ·G.
         participant_indexes: The corresponding participant indexes.
 
     Returns:
-        The polynomial coefficient commitments (C_0, C_1, ..., C_{t-1}).
+        The polynomial coefficient commitments (C₀, C₁, …, C_{t-1}).
 
     Raises:
         ValueError: If the number of shares doesn't match the number of indexes.

@@ -143,7 +143,7 @@ class Participant:
         )
 
     def public_verification_share(self) -> Point:
-        """Compute Y_i = s_i * G. See keygen.public_verification_share."""
+        """Compute Yᵢ = sᵢ·G. See keygen.public_verification_share."""
         if self.aggregate_share is None:
             raise AttributeError("Aggregate share has not been initialized.")
         return keygen.public_verification_share(Scalar(self.aggregate_share))
@@ -151,7 +151,7 @@ class Participant:
     def derive_public_verification_share(
         self, coefficient_commitments: tuple[Point, ...], index: int, threshold: int
     ) -> Point:
-        """Derive Y_i from commitments. See keygen.derive_public_verification_share."""
+        """Derive Yᵢ from commitments. See keygen.derive_public_verification_share."""
         if len(coefficient_commitments) != threshold:
             raise ValueError("The number of coefficient commitments must match the threshold.")
         return keygen.derive_public_verification_share(coefficient_commitments, index)

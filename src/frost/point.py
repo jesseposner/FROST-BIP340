@@ -279,16 +279,13 @@ class Point:
         return self + -other
 
     def __rmul__(self, scalar: int | Scalar) -> Point:
-        """Scalar multiplication via double-and-add: scalar * Point.
+        """Scalar multiplication via double-and-add: k·Point.
 
-        Only scalar * Point (e.g. 5 * G) is supported, not Point * scalar,
+        Only k·Point (e.g. 5·G) is supported, not Point·k,
         matching the mathematical convention for scalar multiplication.
 
         Accepts both int and Scalar. When Scalar.__mul__ encounters a Point,
         it returns NotImplemented, so Python falls through to Point.__rmul__.
-
-        Note: for production use, a precomputed table speeds this up ~2x
-        for fixed-base multiplication. See secp256k1lab's FastGEMul.
         """
         from .scalar import Scalar
 
@@ -296,11 +293,11 @@ class Point:
             scalar = int(scalar)
         if not isinstance(scalar, int):
             raise ValueError("The scalar must be an integer or Scalar.")
-        # Reduce modulo the curve order so that Q * P = identity
+        # Reduce modulo the curve order so that Q·P = identity
         scalar = scalar % Q
 
         # Double-and-add scanning bits from low to high:
-        # for each bit position i, if bit i is set, add 2^i * self to result.
+        # for each bit position i, if bit i is set, add 2^i · self to result.
         p = self
         r = self.__class__()
         i = 1

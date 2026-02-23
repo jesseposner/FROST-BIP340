@@ -5,20 +5,20 @@ FROST signing is a two-round protocol where a subset of t participants
 (signers) collaborate to produce a Schnorr signature without reconstructing
 the shared secret:
 
-Round 1: Each signer generates a nonce pair (d_i, e_i) and publishes
-commitments (D_i, E_i) = (d_i*G, e_i*G).
+Round 1: Each signer generates a nonce pair (dᵢ, eᵢ) and publishes
+commitments (Dᵢ, Eᵢ) = (dᵢ·G, eᵢ·G).
 
 Round 2: Each signer computes their signature share:
-    z_i = d_i + e_i * rho_i + lambda_i * s_i * c
+    zᵢ = dᵢ + eᵢ·ρᵢ + λᵢ·sᵢ·c
 
 Where:
-    d_i, e_i  = nonce pair (random, single-use)
-    rho_i     = binding value H(i, m, B) (binds this nonce to this message+group)
-    lambda_i  = Lagrange coefficient (this participant's interpolation weight)
-    s_i       = aggregate share (this participant's secret share)
+    dᵢ, eᵢ   = nonce pair (random, single-use)
+    ρᵢ        = binding value H(i, m, B) (binds this nonce to this message+group)
+    λᵢ        = Lagrange coefficient (this participant's interpolation weight)
+    sᵢ        = aggregate share (this participant's secret share)
     c         = challenge hash H(R, Y, m) (BIP340 Schnorr challenge)
 
-The aggregator sums the shares: z = sum(z_i). The final BIP340 signature is
+The aggregator sums the shares: z = ∑(zᵢ). The final BIP340 signature is
 (R, z) where R is the group nonce commitment.
 
 BIP340 compatibility: nonces and keys are negated as needed to ensure even-y
@@ -40,14 +40,14 @@ def generate_nonce_pair() -> tuple[tuple[Scalar, Scalar], tuple[Point, Point]]:
 
     Each signer must generate a unique, random nonce pair for every signing
     session. The nonce pair (d, e) is kept secret; their commitments
-    (D, E) = (d*G, e*G) are published to other signers.
+    (D, E) = (d·G, e·G) are published to other signers.
 
     Returns:
         ((d, e), (D, E)) where d, e are secret nonces and D = d*G, E = e*G.
 
     The nonce pair MUST be used at most once. Reusing nonces across different
     signing sessions leaks the signer's secret share, because the attacker
-    can set up a system of equations to solve for s_i.
+    can set up a system of equations to solve for sᵢ.
     """
     d = Scalar.random()
     e = Scalar.random()
@@ -70,13 +70,13 @@ def sign(
     """Compute this participant's signature share.
 
     FROST signing equation (Section 5.2 of the FROST paper):
-        z_i = d_i + (e_i * rho_i) + lambda_i * s_i * c
+        zᵢ = dᵢ + (eᵢ·ρᵢ) + λᵢ·sᵢ·c
 
     Where:
-        d_i, e_i  = nonce pair
-        rho_i     = binding value (commits this nonce to this message+group)
-        lambda_i  = Lagrange coefficient (this participant's weight)
-        s_i       = aggregate share (this participant's secret share)
+        dᵢ, eᵢ   = nonce pair
+        ρᵢ        = binding value (commits this nonce to this message+group)
+        λᵢ        = Lagrange coefficient (this participant's weight)
+        sᵢ        = aggregate share (this participant's secret share)
         c         = challenge hash H(R, Y, m)
 
     BIP340 adjustments:
@@ -87,8 +87,8 @@ def sign(
     public key convention, which requires even-y points.
 
     Parameters:
-        nonce_pair: (d_i, e_i), the secret nonce pair for this signing session.
-        aggregate_share: s_i, this participant's secret share.
+        nonce_pair: (dᵢ, eᵢ), the secret nonce pair for this signing session.
+        aggregate_share: sᵢ, this participant's secret share.
         public_key: Y, the group public key.
         participant_index: i, this participant's index.
         message: m, the message being signed.
@@ -98,7 +98,7 @@ def sign(
         taproot_tweak: Optional Taproot tweak for key derivation.
 
     Returns:
-        z_i, this participant's signature share.
+        zᵢ, this participant's signature share.
     """
     # R = group nonce commitment
     group_commitment = Aggregator.group_commitment(
@@ -112,10 +112,10 @@ def sign(
     if bip32_tweak is not None and taproot_tweak is not None:
         tweaked_key, parity = Aggregator.tweak_key(bip32_tweak, taproot_tweak, public_key)
 
-    # c = H_2(R, Y, m) - the BIP340 Schnorr challenge
+    # c = H₂(R, Y, m) — the BIP340 Schnorr challenge
     challenge_hash = Aggregator.challenge_hash(group_commitment, tweaked_key, message)
 
-    # d_i, e_i
+    # dᵢ, eᵢ
     first_nonce, second_nonce = nonce_pair
 
     # Negate nonces if R has odd y (BIP340 requires even y for R)
@@ -123,22 +123,22 @@ def sign(
         first_nonce = -first_nonce
         second_nonce = -second_nonce
 
-    # rho_i = H_1(i, m, B) - binding value
+    # ρᵢ = H₁(i, m, B) — binding value
     binding_value = Aggregator.binding_value(
         participant_index, message, nonce_commitment_pairs, participant_indexes
     )
 
-    # lambda_i - Lagrange coefficient
+    # λᵢ — Lagrange coefficient
     lam = lagrange_coefficient(participant_indexes, participant_index)
 
-    # s_i - aggregate share, possibly negated for BIP340
+    # sᵢ — aggregate share, possibly negated for BIP340
     share = aggregate_share
     if tweaked_key.y is None:
         raise ValueError("Public key is the point at infinity.")
     if tweaked_key.y % 2 != parity:
         share = -share
 
-    # FROST signing equation: z_i = d_i + (e_i * rho_i) + lambda_i * s_i * c
+    # FROST signing equation: zᵢ = dᵢ + (eᵢ·ρᵢ) + λᵢ·sᵢ·c
     # binding_value and challenge_hash are ints from Aggregator, wrap in Scalar
     binding = Scalar(binding_value)
     challenge = Scalar(challenge_hash)
