@@ -13,6 +13,8 @@ the FROST protocol.
 from hashlib import sha256
 
 from .constants import Q
+from .keygen import derive_public_verification_share
+from .lagrange import lagrange_coefficient
 from .point import G, Point
 from .tagged_hash import tagged_hash
 
@@ -28,6 +30,7 @@ class Aggregator:
         participant_indexes: tuple[int, ...],
         bip32_tweak: int | None = None,
         taproot_tweak: int | None = None,
+        group_commitments: tuple[Point, ...] | None = None,
     ):
         """
         Initialize the Aggregator for managing and processing cryptographic
@@ -42,13 +45,13 @@ class Aggregator:
             signature process.
         bip32_tweak (Optional[int]): Optional BIP32 tweak value for key tweaking.
         taproot_tweak (Optional[int]): Optional Taproot tweak value for key tweaking.
+        group_commitments (Optional[Tuple[Point, ...]]): Group commitments for
+            signature share verification. If provided, each share is verified
+            before aggregation.
 
         Raises:
         ValueError: If only one tweak (either bip32_tweak or taproot_tweak) is provided.
                     Both or neither must be provided.
-
-        This setup prepares the Aggregator to handle the aggregation of nonce
-        commitments and signatures.
         """
         # Y
         self.public_key = public_key
@@ -58,6 +61,9 @@ class Aggregator:
         self.nonce_commitment_pairs = nonce_commitment_pairs
         # S = α: t ≤ α ≤ n
         self.participant_indexes = participant_indexes
+        self.group_commitments = group_commitments
+        self.bip32_tweak = bip32_tweak
+        self.taproot_tweak = taproot_tweak
 
         self.tweaked_key = None
         self.tweak = None
@@ -231,6 +237,64 @@ class Aggregator:
         # (m, B)
         return (self.message, self.nonce_commitment_pairs)
 
+    @classmethod
+    def verify_signature_share(
+        cls,
+        share: int,
+        participant_index: int,
+        participant_indexes: tuple[int, ...],
+        group_commitment: Point,
+        public_key: Point,
+        nonce_commitment_pairs: tuple[tuple[Point, Point], ...],
+        message: bytes,
+        public_verification_share: Point,
+        bip32_tweak: int | None = None,
+        taproot_tweak: int | None = None,
+    ) -> bool:
+        """Verify an individual signature share before aggregation.
+
+        This catches a misbehaving signer before their invalid share corrupts
+        the aggregate signature. Without this check, a single bad share
+        produces an invalid group signature with no way to identify the culprit.
+
+        Verification equation:
+            z_i * G == R_i_adj + c * lambda_i * Y_i_adj
+        """
+        # 1. Compute binding value: rho_i = H_1(i, m, B)
+        rho_i = cls.binding_value(
+            participant_index, message, nonce_commitment_pairs, participant_indexes
+        )
+
+        # 2. Compute participant's nonce contribution: R_i = D_i + rho_i * E_i
+        pos = participant_indexes.index(participant_index)
+        D_i, E_i = nonce_commitment_pairs[pos]
+        R_i = D_i + (rho_i * E_i)
+
+        # 3. Negate R_i if group commitment has odd y
+        if group_commitment.y % 2 != 0:
+            R_i = -R_i
+
+        # 4. Compute effective key and challenge hash (handle tweaks like sign does)
+        tweaked_key = public_key
+        parity = 0
+        if bip32_tweak is not None and taproot_tweak is not None:
+            tweaked_key, parity = cls.tweak_key(bip32_tweak, taproot_tweak, public_key)
+
+        challenge = cls.challenge_hash(group_commitment, tweaked_key, message)
+
+        # 5. Compute Lagrange coefficient
+        lam = lagrange_coefficient(participant_indexes, participant_index)
+
+        # 6. Adjust Y_i for key parity: negate if effective key has odd y
+        Y_i = public_verification_share
+        if tweaked_key.y is None:
+            raise ValueError("Public key is the point at infinity.")
+        if tweaked_key.y % 2 != parity:
+            Y_i = -Y_i
+
+        # 7. Check: z_i * G == R_i_adj + (c * lambda_i) * Y_i_adj
+        return share * G == R_i + (challenge * int(lam)) * Y_i
+
     def signature(self, signature_shares: tuple[int, ...]) -> str:
         """
         Compute the final signature from the aggregated signature shares.
@@ -248,7 +312,24 @@ class Aggregator:
         )
         nonce_commitment = group_commitment.to_bytes_xonly()
 
-        # TODO: verify each signature share
+        # Verify each signature share if group_commitments are available
+        if self.group_commitments is not None:
+            for share, index in zip(signature_shares, self.participant_indexes, strict=True):
+                Y_i = derive_public_verification_share(self.group_commitments, index)
+                if not self.verify_signature_share(
+                    share,
+                    index,
+                    self.participant_indexes,
+                    group_commitment,
+                    self.public_key,
+                    self.nonce_commitment_pairs,
+                    self.message,
+                    Y_i,
+                    self.bip32_tweak,
+                    self.taproot_tweak,
+                ):
+                    raise ValueError(f"Invalid signature share from participant {index}.")
+
         # Aggregate signature: z = ∑ z_i (mod Q, the curve order)
         z = sum(signature_shares) % Q
 
