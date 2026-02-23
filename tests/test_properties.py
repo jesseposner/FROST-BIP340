@@ -13,7 +13,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from frost import Aggregator, G, Point, Q
+from frost import Aggregator, G, Participant, Point, Q
 from frost.lagrange import lagrange_coefficient
 from frost.scalar import Scalar
 from tests.strategies import dkg_group, messages, points
@@ -195,3 +195,41 @@ def test_repair_restores_share(data):
     victim.repair_share(tuple(h.aggregate_repair_share for h in helpers))
 
     assert victim.aggregate_share == original_share
+
+
+@settings(max_examples=5, deadline=None)
+@given(data=st.data())
+def test_enrollment_preserves_key(data):
+    """After enrolling a new participant, the group key is unchanged."""
+    participants, t, n = data.draw(dkg_group(max_n=3))
+    original_pk = participants[0].public_key
+
+    # Enroll a new participant at index n+1
+    new_index = n + 1
+    new_participant = Participant(index=new_index, threshold=t, participants=n + 1)
+
+    # Pick t helpers for enrollment (using repair protocol)
+    helpers = participants[:t]
+
+    for helper in helpers:
+        other_helper_indexes = tuple(h.index for h in helpers if h.index != helper.index)
+        helper.generate_repair_shares(other_helper_indexes, new_index)
+
+    for helper in helpers:
+        other_shares = tuple(
+            other.get_repair_share(helper.index)
+            for other in helpers
+            if other.index != helper.index
+        )
+        helper.aggregate_repair_shares(other_shares)
+
+    new_participant.repair_share(tuple(h.aggregate_repair_share for h in helpers))
+
+    # Verify: reconstruct using t-1 original participants + new participant
+    subset = [*participants[: t - 1], new_participant]
+    subset_indexes = tuple(p.index for p in subset)
+    secret = Scalar(0)
+    for p in subset:
+        lam = lagrange_coefficient(subset_indexes, p.index)
+        secret = secret + lam * Scalar(p.aggregate_share)
+    assert int(secret) * G == original_pk
