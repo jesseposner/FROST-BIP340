@@ -168,6 +168,13 @@ class Aggregator:
         binding_value.update(b"".join(nonce_commitment_pairs_bytes))
         binding_value_bytes = binding_value.digest()
 
+        # Note: the binding value is NOT reduced mod Q here. The raw 256-bit
+        # hash output is used directly as a scalar coefficient. This is correct
+        # because scalar multiplication (binding_value * second_commitment)
+        # reduces mod Q implicitly in Point.__rmul__.
+        #
+        # Limitation: participant index is encoded as a single byte, limiting
+        # indexes to 0-255. Sufficient for educational use.
         return int.from_bytes(binding_value_bytes, "big")
 
     @classmethod
@@ -189,6 +196,7 @@ class Aggregator:
             "BIP0340/challenge",
             nonce_commitment.to_bytes_xonly() + public_key.to_bytes_xonly() + message,
         )
+        # Reduce the 256-bit hash to a scalar in the curve order field
         return int.from_bytes(challenge_bytes, "big") % Q
 
     @classmethod
@@ -241,10 +249,12 @@ class Aggregator:
         nonce_commitment = group_commitment.to_bytes_xonly()
 
         # TODO: verify each signature share
+        # Aggregate signature: z = ∑ z_i (mod Q, the curve order)
         z = sum(signature_shares) % Q
 
         if self.tweak and self.tweaked_key:
             challenge_hash = self.challenge_hash(group_commitment, self.tweaked_key, self.message)
+            # Add tweak correction to the aggregate signature (scalar arithmetic mod Q)
             z = (z + (challenge_hash * self.tweak)) % Q
 
         # σ = (R, z)
@@ -292,9 +302,9 @@ class Aggregator:
         aggregate_key = bip32_key + (taproot_tweak * G)
         if aggregate_key.y is None:
             raise ValueError("Invalid public key.")
-        # Aggregate the tweaks
+        # Aggregate the tweaks (scalar addition mod curve order)
         aggregate_tweak = (adjusted_bip32_tweak + taproot_tweak) % Q
-        # Adjust the aggregate tweak if the key is odd
+        # Negate the aggregate tweak if the key has odd y (scalar negation: -x = (-x) mod Q)
         adjusted_aggregate_tweak = (
             (-aggregate_tweak) % Q if aggregate_key.y % 2 != 0 else aggregate_tweak
         )

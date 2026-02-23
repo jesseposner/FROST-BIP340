@@ -114,6 +114,8 @@ class Participant:
     def _generate_polynomial(self) -> None:
         """Generate random polynomial coefficients."""
         # (a_i_0, . . ., a_i_(t - 1)) ⭠ $ ℤ_q
+        # Sample uniformly from the scalar field: 256 random bits reduced
+        # modulo Q (the curve order). This gives scalars in [0, Q-1].
         self.coefficients = tuple(secrets.randbits(256) % Q for _ in range(self.threshold))
 
     def _generate_refresh_polynomial(self) -> None:
@@ -168,7 +170,7 @@ class Participant:
         challenge_hash.update(nonce_commitment_bytes)
         challenge_hash_bytes = challenge_hash.digest()
         challenge_hash_int = int.from_bytes(challenge_hash_bytes, "big")
-        # μ_i = k + a_i_0 * c_i
+        # μ_i = k + a_i_0 * c_i (Schnorr signature equation, reduced modulo curve order)
         s = (nonce + secret * challenge_hash_int) % Q
         # σ_i = (R_i, μ_i)
         self.proof_of_knowledge = (nonce_commitment, s)
@@ -476,6 +478,8 @@ class Participant:
                 continue
             numerator = numerator * (x - index)
             denominator = denominator * (participant_index - index)
+        # Modular inverse via Fermat's little theorem: a^(Q-2) = a^(-1) (mod Q)
+        # This converts the fraction numerator/denominator into a scalar field element.
         return (numerator * pow(denominator, Q - 2, Q)) % Q
 
     def verify_share(
@@ -627,7 +631,9 @@ class Participant:
         # f'(i) = f(j) - j((f(i) - f(j))/(i - j))
         numerator = self.aggregate_share - revealed_share
         denominator = self.index - revealed_share_index
+        # Modular inverse via Fermat's little theorem: a^(Q-2) = a^(-1) (mod Q)
         quotient = (numerator * pow(denominator, Q - 2, Q)) % Q
+        # Reduce modulo curve order to keep result in the scalar field
         self.aggregate_share = (revealed_share - (revealed_share_index * quotient)) % Q
 
         self.threshold -= 1
@@ -638,6 +644,7 @@ class Participant:
             F_i = self.derive_public_verification_share(
                 self.group_commitments, index, self.threshold + 1
             )
+            # Modular inverse via Fermat's little theorem
             inverse_i_j = pow((index - revealed_share_index), Q - 2, Q) % Q
             Fp_i = F_j - (revealed_share_index * inverse_i_j) * (F_i - F_j)
             public_verification_shares.append(Fp_i)
@@ -848,7 +855,8 @@ class Participant:
         # d_i, e_i
         first_nonce, second_nonce = self.nonce_pair
 
-        # Negate d_i and e_i if R is odd
+        # Negate d_i and e_i if R has odd y (BIP340 requires even y for R).
+        # Negation in the scalar field: -x = Q - x (mod Q)
         if group_commitment.y % 2 != 0:
             first_nonce = Q - first_nonce
             second_nonce = Q - second_nonce
@@ -862,13 +870,15 @@ class Participant:
         # s_i
         aggregate_share = self.aggregate_share
 
-        # Negate s_i if Y is odd
+        # Negate s_i if Y has odd y (BIP340 requires even y for public keys)
         if public_key.y is None:
             raise ValueError("Public key is the point at infinity.")
         if public_key.y % 2 != parity:
             aggregate_share = Q - aggregate_share
 
+        # FROST signing equation (Section 5.2 of the FROST paper):
         # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
+        # All arithmetic is in the scalar field (mod Q, the curve order).
         return (
             first_nonce
             + (second_nonce * binding_value)
