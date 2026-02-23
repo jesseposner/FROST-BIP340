@@ -11,8 +11,8 @@ creation, and verifying the integrity of the process.
 """
 
 import secrets
-from hashlib import sha256
 
+from . import keygen
 from .aggregator import Aggregator
 from .constants import Q
 from .lagrange import lagrange_coefficient as _lagrange_coeff
@@ -151,32 +151,11 @@ class Participant:
         if not self.coefficients:
             raise ValueError("Polynomial coefficients must be initialized.")
 
-        # k ⭠ ℤ_q
-        nonce = secrets.randbits(256) % Q
-        # R_i = g^k
-        nonce_commitment = nonce * G
-        # i
-        index_byte = self.index.to_bytes(1, "big")
-        # 𝚽
-        context_bytes = self.CONTEXT
-        # g^a_i_0
-        secret = self.coefficients[0]
-        secret_commitment = secret * G
-        secret_commitment_bytes = secret_commitment.to_bytes_compressed()
-        # R_i
-        nonce_commitment_bytes = nonce_commitment.to_bytes_compressed()
-        # c_i = H(i, 𝚽, g^a_i_0, R_i)
-        challenge_hash = sha256()
-        challenge_hash.update(index_byte)
-        challenge_hash.update(context_bytes)
-        challenge_hash.update(secret_commitment_bytes)
-        challenge_hash.update(nonce_commitment_bytes)
-        challenge_hash_bytes = challenge_hash.digest()
-        challenge_hash_int = int.from_bytes(challenge_hash_bytes, "big")
-        # μ_i = k + a_i_0 * c_i (Schnorr signature equation, reduced modulo curve order)
-        s = (nonce + secret * challenge_hash_int) % Q
-        # σ_i = (R_i, μ_i)
-        self.proof_of_knowledge = (nonce_commitment, s)
+        result = keygen.compute_proof_of_knowledge(
+            Scalar(self.coefficients[0]), self.index, self.CONTEXT
+        )
+        # Store as (Point, int) for backward compatibility
+        self.proof_of_knowledge = (result[0], int(result[1]))
 
     def _compute_coefficient_commitments(self) -> None:
         """
@@ -185,9 +164,9 @@ class Participant:
         if not self.coefficients:
             raise ValueError("Polynomial coefficients must be initialized.")
 
-        # C_i = ⟨𝜙_i_0, ..., 𝜙_i_(t - 1)⟩
-        # 𝜙_i_j = g^a_i_j, 0 ≤ j ≤ t - 1
-        self.coefficient_commitments = tuple(coefficient * G for coefficient in self.coefficients)
+        self.coefficient_commitments = keygen.compute_coefficient_commitments(
+            tuple(Scalar(c) for c in self.coefficients)
+        )
 
     def verify_proof_of_knowledge(
         self, proof: tuple[Point, int], secret_commitment: Point, index: int
@@ -211,27 +190,15 @@ class Participant:
                 "Proof must be a tuple containing exactly two elements (nonce commitment and s)."
             )
 
-        # R_l, μ_l
         nonce_commitment, s = proof
         if not isinstance(nonce_commitment, Point) or not isinstance(s, int):
             raise ValueError("Proof must contain a Point and an integer.")
 
-        # l
-        index_byte = index.to_bytes(1, "big")
-        # 𝚽
-        context_bytes = self.CONTEXT
-        # g^a_l_0
-        secret_commitment_bytes = secret_commitment.to_bytes_compressed()
-        nonce_commitment_bytes = nonce_commitment.to_bytes_compressed()
-        # c_l = H(l, 𝚽, g^a_l_0, R_l)
-        challenge_input = (
-            index_byte + context_bytes + secret_commitment_bytes + nonce_commitment_bytes
+        # Convert int proof component to Scalar for the module function
+        scalar_proof = (nonce_commitment, Scalar(s))
+        return keygen.verify_proof_of_knowledge(
+            scalar_proof, secret_commitment, index, self.CONTEXT
         )
-        challenge_hash = sha256(challenge_input).digest()
-        challenge_hash_int = int.from_bytes(challenge_hash, "big")
-        # R_l ≟ g^μ_l * 𝜙_l_0^-c_l, 1 ≤ l ≤ n, l ≠ i
-        expected_nonce_commitment = (s * G) + ((Q - challenge_hash_int) * secret_commitment)
-        return nonce_commitment == expected_nonce_commitment
 
     def generate_shares(self):
         """
@@ -245,8 +212,10 @@ class Participant:
                 "Polynomial coefficients must be initialized before generating shares."
             )
 
-        # (i, f_i(i)), (l, f_i(l))
-        self.shares = tuple(self._evaluate_polynomial(x) for x in range(1, self.participants + 1))
+        scalar_shares = keygen.generate_shares(
+            tuple(Scalar(c) for c in self.coefficients), self.participants
+        )
+        self.shares = tuple(int(s) for s in scalar_shares)
 
     def generate_repair_shares(self, repair_participants: tuple[int, ...], index: int) -> None:
         """
@@ -493,13 +462,7 @@ class Participant:
         if len(coefficient_commitments) != threshold:
             raise ValueError("The number of coefficient commitments must match the threshold.")
 
-        # ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
-        expected_share = self.derive_public_verification_share(
-            coefficient_commitments, self.index, threshold
-        )
-
-        # g^f_l(i) ≟ ∏ 𝜙_l_k^i^k mod q, 0 ≤ k ≤ t - 1
-        return share * G == expected_share
+        return keygen.verify_share(Scalar(share), self.index, coefficient_commitments)
 
     def aggregate_shares(self, other_shares: tuple[int, ...]) -> None:
         """
@@ -526,19 +489,19 @@ class Participant:
                 """
             )
 
-        # s_i = ∑ f_l(i), 1 ≤ l ≤ n
-        aggregate_share = self.shares[self.index - 1]
-        if not isinstance(aggregate_share, int):
+        own_share = self.shares[self.index - 1]
+        if not isinstance(own_share, int):
             raise TypeError("All shares must be integers.")
         for other_share in other_shares:
             if not isinstance(other_share, int):
                 raise TypeError("All shares must be integers.")
-            aggregate_share = (aggregate_share + other_share) % Q
+
+        result = keygen.aggregate_shares(Scalar(own_share), tuple(Scalar(s) for s in other_shares))
 
         if self.aggregate_share is not None:
-            self.aggregate_share = (self.aggregate_share + aggregate_share) % Q
+            self.aggregate_share = int(Scalar(self.aggregate_share) + result)
         else:
-            self.aggregate_share = aggregate_share
+            self.aggregate_share = int(result)
 
     def aggregate_repair_shares(self, other_shares: tuple[int, ...]) -> None:
         """
@@ -678,8 +641,7 @@ class Participant:
         if self.aggregate_share is None:
             raise AttributeError("Aggregate share has not been initialized.")
 
-        # Y_i = g^s_i
-        return self.aggregate_share * G
+        return keygen.public_verification_share(Scalar(self.aggregate_share))
 
     def derive_public_verification_share(
         self, coefficient_commitments: tuple[Point, ...], index: int, threshold: int
@@ -703,11 +665,7 @@ class Participant:
         if len(coefficient_commitments) != threshold:
             raise ValueError("The number of coefficient commitments must match the threshold.")
 
-        expected_y_commitment = Point()  # Point at infinity
-        for k, commitment in enumerate(coefficient_commitments):
-            expected_y_commitment += (index**k % Q) * commitment
-
-        return expected_y_commitment
+        return keygen.derive_public_verification_share(coefficient_commitments, index)
 
     def derive_public_key(self, other_secret_commitments: tuple[Point, ...]) -> Point:
         """
@@ -726,15 +684,14 @@ class Participant:
         if not self.coefficient_commitments:
             raise ValueError("Coefficient commitments have not been initialized or are empty.")
 
-        # Y = ∏ 𝜙_j_0, 1 ≤ j ≤ n
-        public_key = self.coefficient_commitments[0]
         for other_secret_commitment in other_secret_commitments:
             if not isinstance(other_secret_commitment, Point):
                 raise TypeError("All secret commitments must be Point instances.")
-            public_key += other_secret_commitment
 
-        self.public_key = public_key
-        return public_key
+        self.public_key = keygen.derive_public_key(
+            self.coefficient_commitments[0], other_secret_commitments
+        )
+        return self.public_key
 
     def derive_group_commitments(
         self, other_coefficient_commitments: tuple[tuple[Point, ...]]
@@ -766,21 +723,11 @@ class Participant:
         if not self.coefficient_commitments:
             raise ValueError("Coefficient commitments have not been initialized or are empty.")
 
-        group_commitments = tuple(
-            sum(commitments, Point())
-            for commitments in zip(
-                *((*other_coefficient_commitments, self.coefficient_commitments)),
-                strict=True,
-            )
+        self.group_commitments = keygen.derive_group_commitments(
+            self.coefficient_commitments,
+            other_coefficient_commitments,
+            existing=self.group_commitments,
         )
-
-        if self.group_commitments is not None:
-            self.group_commitments = tuple(
-                sum(commitments, Point())
-                for commitments in zip(self.group_commitments, group_commitments, strict=True)
-            )
-        else:
-            self.group_commitments = group_commitments
 
     def generate_nonce_pair(self) -> None:
         """
