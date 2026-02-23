@@ -12,8 +12,7 @@ creation, and verifying the integrity of the process.
 
 import secrets
 
-from . import keygen
-from .aggregator import Aggregator
+from . import keygen, signing
 from .constants import Q
 from .lagrange import lagrange_coefficient as _lagrange_coeff
 from .matrix import Matrix
@@ -734,13 +733,10 @@ class Participant:
         Generate a nonce pairs and their elliptic curve commitments for
         cryptographic operations.
         """
-        # (d_i_j, e_i_j) ⭠ $ ℤ*_q x ℤ*_q
-        nonce_pair = (secrets.randbits(256) % Q, secrets.randbits(256) % Q)
-        # (D_i_j, E_i_j) = (g^d_i_j, g^e_i_j)
-        nonce_commitment_pair = (nonce_pair[0] * G, nonce_pair[1] * G)
-
-        self.nonce_pair = nonce_pair
-        self.nonce_commitment_pair = nonce_commitment_pair
+        scalar_pair, commitment_pair = signing.generate_nonce_pair()
+        # Store nonce_pair as (int, int) for backward compatibility
+        self.nonce_pair = (int(scalar_pair[0]), int(scalar_pair[1]))
+        self.nonce_commitment_pair = commitment_pair
 
     def sign(
         self,
@@ -775,53 +771,18 @@ class Participant:
         if self.aggregate_share is None:
             raise ValueError("Aggregate share has not been initialized.")
 
-        # R
-        group_commitment = Aggregator.group_commitment(
-            message, nonce_commitment_pairs, participant_indexes
+        result = signing.sign(
+            (Scalar(self.nonce_pair[0]), Scalar(self.nonce_pair[1])),
+            Scalar(self.aggregate_share),
+            self.public_key,
+            self.index,
+            message,
+            nonce_commitment_pairs,
+            participant_indexes,
+            bip32_tweak,
+            taproot_tweak,
         )
-        if group_commitment.x is None or group_commitment.y is None:
-            raise ValueError("Group commitment is the point at infinity.")
-
-        public_key = self.public_key
-        parity = 0
-        if bip32_tweak is not None and taproot_tweak is not None:
-            public_key, parity = Aggregator.tweak_key(bip32_tweak, taproot_tweak, self.public_key)
-
-        # c = H_2(R, Y, m)
-        challenge_hash = Aggregator.challenge_hash(group_commitment, public_key, message)
-
-        # d_i, e_i
-        first_nonce, second_nonce = self.nonce_pair
-
-        # Negate d_i and e_i if R has odd y (BIP340 requires even y for R).
-        # Negation in the scalar field: -x = Q - x (mod Q)
-        if group_commitment.y % 2 != 0:
-            first_nonce = Q - first_nonce
-            second_nonce = Q - second_nonce
-
-        # p_i = H_1(i, m, B), i ∈ S
-        binding_value = Aggregator.binding_value(
-            self.index, message, nonce_commitment_pairs, participant_indexes
-        )
-        # λ_i
-        lagrange_coefficient = self._lagrange_coefficient(participant_indexes)
-        # s_i
-        aggregate_share = self.aggregate_share
-
-        # Negate s_i if Y has odd y (BIP340 requires even y for public keys)
-        if public_key.y is None:
-            raise ValueError("Public key is the point at infinity.")
-        if public_key.y % 2 != parity:
-            aggregate_share = Q - aggregate_share
-
-        # FROST signing equation (Section 5.2 of the FROST paper):
-        # z_i = d_i + (e_i * p_i) + λ_i * s_i * c
-        # All arithmetic is in the scalar field (mod Q, the curve order).
-        return (
-            first_nonce
-            + (second_nonce * binding_value)
-            + lagrange_coefficient * aggregate_share * challenge_hash
-        ) % Q
+        return int(result)
 
     def derive_coefficient_commitments(
         self,
