@@ -10,11 +10,9 @@ generating and handling cryptographic shares, participating in signature
 creation, and verifying the integrity of the process.
 """
 
-from . import keygen, repair, signing
-from .constants import Q
+from . import keygen, repair, signing, threshold
 from .lagrange import lagrange_coefficient as _lagrange_coeff
-from .matrix import Matrix
-from .point import G, Point
+from .point import Point
 from .polynomial import (
     evaluate_polynomial,
     generate_polynomial,
@@ -567,31 +565,17 @@ class Participant:
         if self.group_commitments is None:
             raise ValueError("Group commitments have not been initialized.")
 
-        # f'(i) = f(j) - j((f(i) - f(j))/(i - j))
-        numerator = self.aggregate_share - revealed_share
-        denominator = self.index - revealed_share_index
-        # Modular inverse via Fermat's little theorem: a^(Q-2) = a^(-1) (mod Q)
-        quotient = (numerator * pow(denominator, Q - 2, Q)) % Q
-        # Reduce modulo curve order to keep result in the scalar field
-        self.aggregate_share = (revealed_share - (revealed_share_index * quotient)) % Q
-
-        self.threshold -= 1
-        public_verification_shares = []
-        indexes = []
-        F_j = revealed_share * G
-        for index in range(1, self.threshold + 1):
-            F_i = self.derive_public_verification_share(
-                self.group_commitments, index, self.threshold + 1
-            )
-            # Modular inverse via Fermat's little theorem
-            inverse_i_j = pow((index - revealed_share_index), Q - 2, Q) % Q
-            Fp_i = F_j - (revealed_share_index * inverse_i_j) * (F_i - F_j)
-            public_verification_shares.append(Fp_i)
-            indexes.append(index)
-        group_commitments = self.derive_coefficient_commitments(
-            tuple(public_verification_shares), tuple(indexes)
+        new_share, new_group_commitments = threshold.decrement_threshold(
+            Scalar(self.aggregate_share),
+            Scalar(revealed_share),
+            revealed_share_index,
+            self.index,
+            self.group_commitments,
+            self.threshold,
         )
-        self.group_commitments = group_commitments
+        self.aggregate_share = int(new_share)
+        self.threshold -= 1
+        self.group_commitments = new_group_commitments
 
     def increase_threshold(self, other_shares: tuple[int, ...]) -> None:
         """
@@ -610,8 +594,13 @@ class Participant:
         if not self.aggregate_share:
             raise ValueError("Participant's aggregate share has not been initialized.")
 
-        aggregate_share = (self.shares[self.index - 1] + sum(other_shares)) % Q
-        self.aggregate_share += (aggregate_share * self.index) % Q
+        result = threshold.increase_threshold(
+            Scalar(self.aggregate_share),
+            (Scalar(self.shares[self.index - 1]),),
+            tuple(Scalar(s) for s in other_shares),
+            self.index,
+        )
+        self.aggregate_share = int(result)
 
     def public_verification_share(self) -> Point:
         """
@@ -802,20 +791,9 @@ class Participant:
         ValueError: If the number of public verification shares does not match
         the number of participant indexes.
         """
-        if len(public_verification_shares) != len(participant_indexes):
-            raise ValueError(
-                """
-                The number of public verification shares must match the number
-                of participant indexes.
-                """
-            )
-
-        A = Matrix.create_vandermonde(participant_indexes)
-        A_inv = A.inverse_matrix()
-        Y = tuple((share,) for share in public_verification_shares)
-        coefficients = A_inv.mult_point_matrix(Y)
-
-        return tuple(coeff[0] for coeff in coefficients)
+        return threshold.derive_coefficient_commitments(
+            public_verification_shares, participant_indexes
+        )
 
     def derive_shared_secret_share(
         self, public_key: Point, participant_indexes: tuple[int, ...]
