@@ -37,7 +37,7 @@ def increase_threshold(
     """Adjust a participant's share for an increased threshold.
 
     When the threshold is increased from t to t', each participant generates a
-    new polynomial of degree (t' - t - 1) and distributes evaluations. The
+    new polynomial of degree (t' - 2) and distributes evaluations. The
     participant then adjusts their aggregate share by adding the sum of all
     new evaluations (own + received), weighted by their index.
 
