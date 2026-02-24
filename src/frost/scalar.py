@@ -19,6 +19,7 @@ that k·G cycles correctly: Q·G = identity (the point at infinity).
 """
 
 import secrets
+from typing import Literal
 
 from .constants import Q
 
@@ -94,7 +95,7 @@ class Scalar:
             raise ValueError("Cannot invert zero.")
         return Scalar(pow(self._value, Q - 2, Q))
 
-    def to_bytes(self, length: int = 32, byteorder: str = "big") -> bytes:
+    def to_bytes(self, length: int = 32, byteorder: Literal["little", "big"] = "big") -> bytes:
         return self._value.to_bytes(length, byteorder)
 
     @classmethod

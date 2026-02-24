@@ -97,16 +97,12 @@ def test_decrement_threshold_own_share():
         receiver.aggregate_shares(other_shares)
     for p in participants:
         other_commitments = tuple(
-            other.coefficient_commitments[0]
-            for other in participants
-            if other.index != p.index
+            other.coefficient_commitments[0] for other in participants if other.index != p.index
         )
         p.derive_public_key(other_commitments)
     for p in participants:
         other_ccs = tuple(
-            other.coefficient_commitments
-            for other in participants
-            if other.index != p.index
+            other.coefficient_commitments for other in participants if other.index != p.index
         )
         p.derive_group_commitments(other_ccs)
 

@@ -280,6 +280,7 @@ class Aggregator:
         R_i = D_i + (rho_i * E_i)
 
         # 3. Negate Rᵢ if group commitment has odd y
+        assert group_commitment.y is not None
         if group_commitment.y % 2 != 0:
             R_i = -R_i
 

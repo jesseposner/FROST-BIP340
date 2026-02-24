@@ -56,6 +56,7 @@ class Participant:
         self.repair_participants: tuple[int, ...] | None = None
 
     def _scalar_coeffs(self) -> tuple[Scalar, ...]:
+        assert self.coefficients is not None
         return tuple(Scalar(c) for c in self.coefficients)
 
     def _init_commitments(self) -> None:
@@ -64,6 +65,7 @@ class Participant:
         )
 
     def _init_proof(self) -> None:
+        assert self.coefficients is not None
         r = keygen.compute_proof_of_knowledge(
             Scalar(self.coefficients[0]), self.index, self.CONTEXT
         )
@@ -214,9 +216,10 @@ class Participant:
         """Get repair share for a participant. See repair.get_repair_share."""
         if self.repair_participants is None or self.repair_shares is None:
             raise ValueError("Repair shares have not been initialized.")
+        shares: tuple[int | None, ...] = self.repair_shares
         return int(
             repair.get_repair_share(
-                tuple(Scalar(s) for s in self.repair_shares),
+                tuple(Scalar(s) for s in shares if s is not None),
                 self.repair_participants,
                 participant_index,
             )
