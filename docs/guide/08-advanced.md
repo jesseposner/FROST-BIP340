@@ -6,22 +6,33 @@ are independent features that address real-world operational needs: recovering
 from key loss, rotating shares, adjusting security parameters, and maintaining
 consistent group state after changes.
 
+**Security model: Feldman verification throughout.** The academic literature
+for these operations (Laing & Stinson for repair, Herzberg et al. for
+refresh, Nojoumian & Stinson for threshold changes) typically proves
+security against honest-but-curious adversaries. This implementation
+extends every operation with Feldman-style commitment verification,
+providing security against active adversaries with blame capability:
+
+- **Repair and enrollment**: Each helper publishes commitments to their
+  repair shares. Recipients verify (1) each share matches its commitment,
+  and (2) the commitments are consistent with the group polynomial. A
+  cheating helper is identified by which check fails.
+- **Threshold increase**: Each participant publishes coefficient commitments
+  and a proof of knowledge for their increase polynomial, then recipients
+  verify received shares against the commitments, exactly as in DKG.
+- **Threshold decrease**: The revealed share is verifiable against existing
+  group commitments. New group commitments are derived via Vandermonde
+  inversion and used to verify post-decrement shares.
+- **Share refresh**: Each participant publishes Feldman commitments to their
+  refresh polynomial. Recipients verify refresh shares against these
+  commitments before aggregating.
+
 ## Share Repair
 
 The repair protocol follows the Repairable Threshold Scheme construction
 from Laing and Stinson ("A Survey and Refinement of Repairable Threshold
 Schemes," 2018), based on additive splitting of Lagrange-weighted
 contributions.
-
-**Security model.** The Laing and Stinson RTS construction is proven secure
-against honest-but-curious adversaries (the proof of their Theorem 4.1
-begins: "Assume all players act honestly during the protocol"). This
-implementation extends the protocol with Feldman-style commitment
-verification: each helper publishes commitments to their repair shares, and
-recipients verify that (1) each share matches its commitment, and (2) the
-commitments are consistent with the group polynomial. This makes the
-protocol verifiable against active adversaries and blame-capable: a cheating
-helper is identified by the specific verification check that fails.
 
 When a participant loses their aggregate share (hardware failure, corrupted
 backup), the remaining participants can reconstruct it without revealing the
