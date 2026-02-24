@@ -1,10 +1,10 @@
 # Advanced Operations
 
-This chapter covers three operations beyond basic DKG and signing: share
-repair, threshold changes, and coefficient commitment derivation. These are
-independent features that address real-world operational needs: recovering from
-key loss, adjusting security parameters, and maintaining consistent group state
-after changes.
+This chapter covers operations beyond basic DKG and signing: share repair,
+share refresh, threshold changes, and coefficient commitment derivation. These
+are independent features that address real-world operational needs: recovering
+from key loss, rotating shares, adjusting security parameters, and maintaining
+consistent group state after changes.
 
 ## Share Repair
 
@@ -96,25 +96,43 @@ the group public key doesn't change.
 
 ### Disenrollment
 
-Disenrollment, removing a participant, uses share refresh (Herzberg et al.,
-1995). The remaining participants run a refresh among themselves, generating
-zero-constant-term polynomials and adding new evaluations to their shares.
-This changes every share, so the removed participant's old share no longer
+Disenrollment, removing a participant, uses share refresh (see below). The
+remaining participants run a refresh among themselves, excluding the
+departing participant entirely. The removed participant's old share no longer
 combines with the refreshed shares to reconstruct the secret. The group
-public key is preserved, but the removed participant is effectively locked
-out.
+public key is preserved.
 
-**Security caveat:** Herzberg's refresh scheme relies on the *adjacent
-assumption*: if an adversary corrupts a party during a refresh phase, they
-are assumed to be corrupted in both adjacent time periods. Xia et al.
-("Provably Secure Proactive Secret Sharing Without the Adjacent Assumption,"
-ProvSec 2019) show that without this assumption, a mobile adversary who
-compromises different parties across refresh boundaries can combine old and
-new share information. For disenrollment, this means the refresh must
-complete before the departing participant (or an adversary who has
-compromised them) can observe any refresh-phase traffic. In practice, this
-requires that the departing participant is excluded from the refresh protocol
-entirely, not merely excluded from receiving the output.
+## Share Refresh
+
+Share refresh (Herzberg et al., "Proactive Secret Sharing Or: How to Cope
+With Perpetual Leakage," CRYPTO '95) allows participants to periodically
+randomize their shares without changing the group secret. Each participant
+generates a zero-constant-term polynomial and distributes evaluations to
+all other participants. Adding these evaluations to existing shares produces
+new shares on a different polynomial with the same constant term (the group
+secret). Any shares from the previous epoch become useless.
+
+```python
+from frost.polynomial import generate_refresh_polynomial, evaluate_polynomial
+
+refresh_poly = generate_refresh_polynomial(threshold)
+# refresh_poly[0] == 0: the constant term is zero, preserving the secret
+```
+
+This is used for periodic key rotation (limiting the window an adversary has
+to collect shares), disenrollment (refreshing among a subset excludes the
+departing participant), and post-compromise recovery.
+
+**Security caveat: the adjacent assumption.** Herzberg's refresh scheme
+assumes that if an adversary corrupts a party during a refresh phase, they
+are corrupted in *both* adjacent time periods. Xia et al. ("Provably Secure
+Proactive Secret Sharing Without the Adjacent Assumption," ProvSec 2019)
+show that without this assumption, a mobile adversary who compromises
+different parties across refresh boundaries can combine old and new share
+information to recover the secret. In practice, this means refresh-phase
+traffic must be protected with the same rigor as the shares themselves:
+an adversary who observes both a pre-refresh share and the refresh
+protocol messages can potentially bridge epochs.
 
 ## Threshold Changes
 
