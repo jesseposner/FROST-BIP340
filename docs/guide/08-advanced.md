@@ -13,6 +13,16 @@ from Laing and Stinson ("A Survey and Refinement of Repairable Threshold
 Schemes," 2018), based on additive splitting of Lagrange-weighted
 contributions.
 
+**Security model.** The Laing and Stinson RTS construction is proven secure
+against honest-but-curious adversaries (the proof of their Theorem 4.1
+begins: "Assume all players act honestly during the protocol"). This
+implementation extends the protocol with Feldman-style commitment
+verification: each helper publishes commitments to their repair shares, and
+recipients verify that (1) each share matches its commitment, and (2) the
+commitments are consistent with the group polynomial. This makes the
+protocol verifiable against active adversaries and blame-capable: a cheating
+helper is identified by the specific verification check that fails.
+
 When a participant loses their aggregate share (hardware failure, corrupted
 backup), the remaining participants can reconstruct it without revealing the
 group secret. The requirement: at least t participants (the threshold) must
@@ -125,14 +135,25 @@ departing participant), and post-compromise recovery.
 
 **Security caveat: the adjacent assumption.** Herzberg's refresh scheme
 assumes that if an adversary corrupts a party during a refresh phase, they
-are corrupted in *both* adjacent time periods. Xia et al. ("Provably Secure
-Proactive Secret Sharing Without the Adjacent Assumption," ProvSec 2019)
-show that without this assumption, a mobile adversary who compromises
-different parties across refresh boundaries can combine old and new share
-information to recover the secret. In practice, this means refresh-phase
-traffic must be protected with the same rigor as the shares themselves:
-an adversary who observes both a pre-refresh share and the refresh
-protocol messages can potentially bridge epochs.
+are corrupted in *both* adjacent time periods. Nikov and Nikova ("On
+Proactive Secret Sharing Schemes," 2004) identified the specific
+vulnerability: since the refresh polynomial has a zero constant term, every
+participant implicitly knows the point (0, 0) on the update polynomial.
+An adversary controlling t-1 parties during the refresh phase therefore
+knows t points on the degree-(t-1) update polynomial, enough to reconstruct
+it entirely. With the update polynomial, the adversary can transform any
+single share from the previous epoch into a valid share in the new epoch,
+breaking the t-of-n threshold.
+
+Xia et al. ("Provably Secure Proactive Secret Sharing Without the Adjacent
+Assumption," ProvSec 2019) proposed a solution using higher-degree update
+polynomials followed by polynomial truncation, so that knowledge of (0, 0)
+no longer gives the adversary enough points.
+
+In practice, this means refresh-phase traffic must be protected with the
+same rigor as the shares themselves. This caveat applies to all
+refresh-based operations: periodic key rotation, disenrollment, and
+post-compromise recovery.
 
 ## Threshold Changes
 
@@ -232,6 +253,36 @@ V_inv = V.inverse_matrix()
 This derivation is used internally by `decrement_threshold` to produce the
 updated group commitments, but it's also available directly for any situation
 where coefficient commitments need to be recovered from verification shares.
+
+## Operational Caveats
+
+The advanced operations above modify group state (shares, thresholds,
+membership). In practice, several challenges arise beyond the core
+cryptographic protocols.
+
+**Atomicity.** Threshold decrease requires a participant to reveal their
+share, producing a t-1 of n-1 configuration. If the goal is t-1 of n
+(decreasing threshold while keeping all participants), the revealer must be
+re-enrolled afterwards, but there is no atomic guarantee that re-enrollment
+will succeed. A failure between the two steps leaves the group in an
+unintended configuration.
+
+**Agreement.** Participants must agree on whether a transition (refresh,
+threshold change, enrollment) actually happened. If some participants
+believe a refresh occurred and delete their old shares while others do not,
+the group may become unable to sign. Reaching agreement traditionally
+requires an honest majority, which FROST does not assume. The BIP-FROST-DKG
+draft (Nick, Ruffing, Seurin) addresses this for initial key generation
+using "conditional agreement," but extending this to post-keygen operations
+remains an open problem.
+
+**Tightening vs. loosening.** Operations that loosen security parameters
+(enrollment, threshold decrease) are straightforward: they grant new
+capabilities without requiring anyone to give anything up. Operations that
+tighten parameters (disenrollment, threshold increase) rely on participants
+deleting their old shares. A participant who retains old shares can
+potentially bypass the new security parameters by colluding with others who
+also retained theirs.
 
 ## Summary
 
