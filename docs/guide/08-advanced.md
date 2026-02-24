@@ -94,6 +94,16 @@ is a new participant who never had a share. The same protocol gives the
 newcomer a valid share of the existing group secret. No new DKG is needed, and
 the group public key doesn't change.
 
+### Disenrollment
+
+Disenrollment, removing a participant, uses share refresh (Herzberg et al.,
+1995). The remaining participants run a refresh among themselves, generating
+zero-constant-term polynomials and adding new evaluations to their shares.
+This changes every share, so the removed participant's old share no longer
+combines with the refreshed shares to reconstruct the secret. The group
+public key is preserved, but the removed participant is effectively locked
+out.
+
 ## Threshold Changes
 
 Threshold modification techniques are based on Desmedt and Jajodia
