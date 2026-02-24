@@ -103,6 +103,9 @@ def decrement_threshold(
     Returns:
         (new_aggregate_share, new_group_commitments) for the reduced threshold.
     """
+    if own_index == revealed_index:
+        raise ValueError("Cannot decrement using own share.")
+
     # f'(i) = f(j) - j * ((f(i) - f(j)) / (i - j))
     numerator = aggregate_share - revealed_share
     denominator = Scalar(own_index - revealed_index)

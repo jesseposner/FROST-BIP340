@@ -32,6 +32,12 @@ class Participant:
     def __init__(self, index: int, threshold: int, participants: int):
         if not all(isinstance(arg, int) for arg in (index, threshold, participants)):
             raise ValueError("All arguments (index, threshold, participants) must be integers.")
+        if threshold < 2:
+            raise ValueError("Threshold must be at least 2.")
+        if participants < threshold:
+            raise ValueError("Number of participants must be at least the threshold.")
+        if index < 1:
+            raise ValueError("Participant index must be at least 1.")
         self.index = index
         self.threshold = threshold
         self.participants = participants
@@ -145,7 +151,7 @@ class Participant:
     def public_verification_share(self) -> Point:
         """Compute Yᵢ = sᵢ·G. See keygen.public_verification_share."""
         if self.aggregate_share is None:
-            raise AttributeError("Aggregate share has not been initialized.")
+            raise ValueError("Aggregate share has not been initialized.")
         return keygen.public_verification_share(Scalar(self.aggregate_share))
 
     def derive_public_verification_share(
@@ -204,7 +210,7 @@ class Participant:
         self.repair_share_commitments = commitments
         self.repair_participants = sorted_p
 
-    def get_repair_share(self, participant_index):
+    def get_repair_share(self, participant_index: int) -> int:
         """Get repair share for a participant. See repair.get_repair_share."""
         if self.repair_participants is None or self.repair_shares is None:
             raise ValueError("Repair shares have not been initialized.")
@@ -218,10 +224,10 @@ class Participant:
 
     def get_repair_share_commitment(
         self,
-        participant_index,
+        participant_index: int,
         repair_share_commitments: tuple[Point, ...],
         repair_participants: tuple[int, ...] | None = None,
-    ):
+    ) -> Point:
         """Get repair share commitment. See repair.get_repair_share_commitment."""
         if repair_participants is None:
             if not self.repair_participants:

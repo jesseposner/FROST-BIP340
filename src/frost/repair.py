@@ -95,10 +95,10 @@ def get_repair_share(
         The repair share for the requested participant.
 
     Raises:
-        IndexError: If participant_index is not in the repair set.
+        ValueError: If participant_index is not in the repair set.
     """
     if participant_index not in repair_participants:
-        raise IndexError("Participant index does not match the initial set.")
+        raise ValueError("Participant index is not in the repair set.")
     mapped_index = repair_participants.index(participant_index)
     return repair_shares[mapped_index]
 
@@ -122,10 +122,10 @@ def get_repair_share_commitment(
         The commitment for the requested participant's repair share.
 
     Raises:
-        IndexError: If participant_index is not in the repair set.
+        ValueError: If participant_index is not in the repair set.
     """
     if participant_index not in repair_participants:
-        raise IndexError("Participant index does not match the initial set.")
+        raise ValueError("Participant index is not in the repair set.")
     mapped_index = repair_participants.index(participant_index)
     return repair_share_commitments[mapped_index]
 
