@@ -104,6 +104,18 @@ combines with the refreshed shares to reconstruct the secret. The group
 public key is preserved, but the removed participant is effectively locked
 out.
 
+**Security caveat:** Herzberg's refresh scheme relies on the *adjacent
+assumption*: if an adversary corrupts a party during a refresh phase, they
+are assumed to be corrupted in both adjacent time periods. Xia et al.
+("Provably Secure Proactive Secret Sharing Without the Adjacent Assumption,"
+ProvSec 2019) show that without this assumption, a mobile adversary who
+compromises different parties across refresh boundaries can combine old and
+new share information. For disenrollment, this means the refresh must
+complete before the departing participant (or an adversary who has
+compromised them) can observe any refresh-phase traffic. In practice, this
+requires that the departing participant is excluded from the refresh protocol
+entirely, not merely excluded from receiving the output.
+
 ## Threshold Changes
 
 Threshold modification techniques are based on Desmedt and Jajodia
