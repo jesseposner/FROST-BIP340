@@ -70,6 +70,11 @@ is_valid = verify_share(share, participant_index, coefficient_commitments)
 If this check passes, the share is consistent with the published commitments.
 If it fails, the dealer is cheating.
 
+This scheme is known as **Feldman's Verifiable Secret Sharing** (Feldman,
+1987). It extends Shamir's Secret Sharing by publishing commitments that let
+recipients verify their shares without a trusted dealer. FROST uses Feldman's
+VSS as the verification layer during DKG.
+
 ## Why This Works: The Homomorphism
 
 The key mathematical property is:

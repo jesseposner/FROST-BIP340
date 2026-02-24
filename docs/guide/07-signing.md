@@ -135,6 +135,21 @@ These negations are applied before computing the signature share. The effect is
 equivalent to single-signer BIP340's convention of negating the private key or
 nonce as needed.
 
+### Why Negation Works
+
+The BIP340 verifier checks: `s·G = R + e·P` where `P` has even y.
+
+If the group key `P` has odd y, we use `-P` (even y) as the public key. The
+group secret is effectively `-s` instead of `s`. Each participant must negate
+their share `sᵢ` so the partial signatures sum correctly:
+
+    Σ(-sᵢ·λᵢ) = -s = the effective secret for -P
+
+The same logic applies to nonces: if the group nonce `R` has odd y, each signer
+negates their nonce components so the partial nonces sum to `-R` (which has
+even y). The verification equation is preserved because both sides are negated
+consistently.
+
 ## Aggregation
 
 The aggregator collects all signature shares and sums them:
