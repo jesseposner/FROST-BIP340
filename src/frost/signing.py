@@ -25,8 +25,12 @@ BIP340 compatibility: nonces and keys are negated as needed to ensure even-y
 values, matching BIP340's x-only public key convention.
 
 References:
-- FROST paper (Komlo & Goldberg), Section 5.2: Signing Protocol
-- BIP340: Schnorr Signatures for secp256k1
+- Komlo, C. and Goldberg, I., "FROST: Flexible Round-Optimized Schnorr
+  Threshold Signatures," SAC 2020, LNCS 12804, Section 5.2.
+- Connolly, D., Komlo, C., Goldberg, I., and Wood, C. A., "The Flexible
+  Round-Optimized Schnorr Threshold (FROST) Protocol for Two-Round
+  Schnorr Signatures," RFC 9591, June 2024.
+- BIP 340: Schnorr Signatures for secp256k1 (Wuille, Nick, Ruffing).
 """
 
 from .aggregator import Aggregator

@@ -8,6 +8,11 @@ after changes.
 
 ## Share Repair
 
+The repair protocol follows the Repairable Threshold Scheme construction
+from Laing and Stinson ("A Survey and Refinement of Repairable Threshold
+Schemes," 2018), based on additive splitting of Lagrange-weighted
+contributions.
+
 When a participant loses their aggregate share (hardware failure, corrupted
 backup), the remaining participants can reconstruct it without revealing the
 group secret. The requirement: at least t participants (the threshold) must
@@ -90,6 +95,12 @@ newcomer a valid share of the existing group secret. No new DKG is needed, and
 the group public key doesn't change.
 
 ## Threshold Changes
+
+Threshold modification techniques are based on Desmedt and Jajodia
+("Redistributing Secret Shares to New Access Structures," 1997) and
+formalized by Nojoumian and Stinson ("On Dealer-Free Dynamic Threshold
+Schemes," 2013), who term the increase method "zero addition" and the
+decrease method "public evaluation."
 
 Sometimes the security requirements of a group change. A 2-of-3 group might
 need to become 3-of-3 (stricter security) or 2-of-2 (a participant is leaving).

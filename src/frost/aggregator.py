@@ -8,6 +8,15 @@ The Aggregator class handles the aggregation of signatures, nonce commitments,
 and other cryptographic elements to facilitate the generation of a threshold
 signature. It ensures that all components are correctly combined according to
 the FROST protocol.
+
+References:
+- Komlo, C. and Goldberg, I., "FROST: Flexible Round-Optimized Schnorr
+  Threshold Signatures," SAC 2020, LNCS 12804, pp. 34-65.
+- BIP 340: Schnorr Signatures for secp256k1 (Wuille, Nick, Ruffing).
+- BIP 341: Taproot: SegWit version 1 spending rules.
+- BIP 327: MuSig2 for BIP340-Compatible Multi-Signatures (Nick, Ruffing,
+  Seurin). (Key tweaking approach adapted for threshold signatures.)
+- BIP 32: Hierarchical Deterministic Wallets (Wuille).
 """
 
 from hashlib import sha256

@@ -18,7 +18,7 @@ own polynomial and distributes shares to every other participant. Each
 participant needs to verify the shares they receive, without seeing anyone
 else's polynomial coefficients.
 
-## Pedersen Commitments
+## Coefficient Commitments
 
 The solution uses a core property of elliptic curves: scalar multiplication
 is a *one-way homomorphism*.
@@ -71,9 +71,15 @@ If this check passes, the share is consistent with the published commitments.
 If it fails, the dealer is cheating.
 
 This scheme is known as **Feldman's Verifiable Secret Sharing** (Feldman,
-1987). It extends Shamir's Secret Sharing by publishing commitments that let
-recipients verify their shares without a trusted dealer. FROST uses Feldman's
-VSS as the verification layer during DKG.
+"A Practical Scheme for Non-interactive Verifiable Secret Sharing," 28th
+FOCS, pp. 427-438, IEEE, 1987). It extends Shamir's Secret Sharing by
+publishing commitments that let recipients verify their shares without a
+trusted dealer. FROST uses Feldman's VSS as the verification layer during
+DKG.
+
+*Naming note:* Some literature calls these "Pedersen commitments," but
+Pedersen's scheme (CRYPTO '91) uses *two* generators. The single-generator
+construction Aⱼ = aⱼ·G used here is Feldman's.
 
 ## Why This Works: The Homomorphism
 

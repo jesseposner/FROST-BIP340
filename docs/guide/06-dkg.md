@@ -55,7 +55,7 @@ are the individual secrets that will sum to form the group secret.
 Each participant publishes two things:
 
 **Coefficient commitments**: Aⱼ = aⱼ·G for each coefficient. These hide the
-coefficients while enabling verification (exactly the Pedersen commitments
+coefficients while enabling verification (exactly the Feldman commitments
 from Chapter 5).
 
 **Proof of knowledge**: a Schnorr proof that they know their secret a₀, the

@@ -18,8 +18,13 @@ indexes, recover the polynomial's coefficient commitments via Vandermonde
 matrix inversion. Used after threshold changes to update group commitments.
 
 References:
-- Dynamic threshold schemes (Desmedt & Jajodia, 1997)
-- FROST threshold modifications follow similar algebraic principles
+- Desmedt, Y. and Jajodia, S., "Redistributing Secret Shares to New
+  Access Structures and Its Applications," Technical Report
+  ISSE-TR-97-01, George Mason University, 1997.
+- Nojoumian, M. and Stinson, D. R., "On Dealer-Free Dynamic Threshold
+  Schemes," Advances in Mathematics of Communications, vol. 7, no. 1,
+  pp. 39-56, 2013. (Formalizes "zero addition" for threshold increase
+  and "public evaluation" for threshold decrease.)
 """
 
 from .keygen import derive_public_verification_share

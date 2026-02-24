@@ -15,6 +15,13 @@ This module provides standalone functions for:
 
 All coefficients are Scalar values (elements of Z_Q), ensuring arithmetic
 is always correctly reduced modulo the curve order.
+
+References:
+- Shamir, A., "How to Share a Secret," Communications of the ACM,
+  vol. 22, no. 11, pp. 612-613, 1979.
+- Herzberg, A. et al., "Proactive Secret Sharing Or: How to Cope With
+  Perpetual Leakage," CRYPTO '95. (Zero-constant polynomial refresh
+  technique, used by generate_refresh_polynomial.)
 """
 
 import secrets

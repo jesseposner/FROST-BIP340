@@ -18,8 +18,13 @@ target is the new participant's index, and helpers contribute shares that
 give the new member a valid share of the existing group secret.
 
 References:
-- Proactive Secret Sharing (Herzberg et al., 1995)
-- FROST share repair follows similar principles
+- Laing, T. and Stinson, D. R., "A Survey and Refinement of Repairable
+  Threshold Schemes," J. Mathematical Cryptology, vol. 12, no. 1,
+  pp. 57-81, 2018. (Primary source for the additive-splitting RTS
+  construction used here.)
+- Herzberg, A., Jarecki, S., Krawczyk, H., and Yung, M., "Proactive
+  Secret Sharing Or: How to Cope With Perpetual Leakage," CRYPTO '95,
+  LNCS 963, pp. 339-352. (Introduced proactive share recovery.)
 """
 
 from .keygen import derive_public_verification_share

@@ -15,8 +15,14 @@ from any t shares via Lagrange interpolation, but fewer than t shares reveal
 nothing.
 
 References:
-- FROST paper (Komlo & Goldberg), Section 5.1: Key Generation
-- Pedersen's DKG (1991), which FROST builds upon
+- Komlo, C. and Goldberg, I., "FROST: Flexible Round-Optimized Schnorr
+  Threshold Signatures," SAC 2020, LNCS 12804, Section 5.1.
+- Pedersen, T. P., "A Threshold Cryptosystem without a Trusted Party,"
+  EUROCRYPT '91, LNCS 547, pp. 522-526. (Original DKG protocol that
+  FROST's key generation builds upon.)
+- Feldman, P., "A Practical Scheme for Non-interactive Verifiable Secret
+  Sharing," FOCS '87, pp. 427-438. (Share verification via coefficient
+  commitments, used by verify_share.)
 """
 
 from hashlib import sha256
@@ -117,7 +123,7 @@ def verify_proof_of_knowledge(
 def compute_coefficient_commitments(
     coefficients: tuple[Scalar, ...],
 ) -> tuple[Point, ...]:
-    """Compute Pedersen commitments to polynomial coefficients: φⱼ = aⱼ·G.
+    """Compute Feldman commitments to polynomial coefficients: φⱼ = aⱼ·G.
 
     Each commitment φⱼ = aⱼ·G hides the coefficient aⱼ while allowing
     public verification. Given a share f(i) and the commitments, anyone can
